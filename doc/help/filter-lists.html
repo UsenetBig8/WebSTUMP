@@ -1,0 +1,48 @@
+WebSTUMP has a capability to process certain articles automatically,
+without involving a human moderator. For instance, if you decide that a
+certain thread has strayed off topic, and you no longer want ANY articles
+from that thread to ever appear, you can add the Subject of that thread
+to the list of bad threads. That will cause all submissions with that
+subject header to be automatically rejected.<P>
+
+Generally, WebSTUMP users can do filtering by the following criteria:
+
+<UL>
+  <LI> By poster
+  <LI> By Subject
+  <LI> use the list of suspicious words
+</UL>
+
+The algorithm for every incoming article is as follows:
+
+<OL>
+
+  <LI> Reject message if the author is listed in <A
+       HREF=##bad.posters.list>the List of Banned Posters.</A>.
+
+  <LI> Reject message if the Subject: field is listed in <A
+       HREF=##bad.subjects.list>the List of Banned Subjects</A>.
+
+  <LI> Reject message if the article contains words from <A
+       HREF=##bad.words.list>the List of Banned Words</A>.
+
+  <LI> File message for human review if the author is listed in <A
+       HREF=##watch.posters.list>the List of Untrusted Posters</A>.
+
+  <LI> File message for human review if the Subject is listed in <A
+       HREF=##watch.subjects.list>the List of Suspicious Subjects</A>.
+
+  <LI> File message for human review if the article contains words from <A
+       HREF=##watch.words.list>the List of Suspicious Words</A>.
+
+  <LI> Approve message if the author is listed in <A
+       HREF=##good.posters.list>the List of Preapproved Posters</A>.
+
+  <LI> Approve message if the Subject: field is listed in <A
+       HREF=##good.subjects.list>the List of Preapproved Subjects</A>.
+
+  <LI> File all still unprocessed articles for human review.
+</OL>
+
+To edit filter lists, log in as "admin" to your newsgroup. Choose the
+proper list and hit "Edit". be careful not to lose any changes.
