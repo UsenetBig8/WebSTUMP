@@ -1,0 +1,177 @@
+#
+# this is a library of perl routines for MIME parsing.
+#
+
+if( $use_mime eq "yes" ){
+  require MIME::Parser;
+  require Convert::UU; import uudecode;
+}
+
+sub uudecode_text {
+  my $dir = pop( @_ );
+  my $entity = pop( @_ );
+
+  my $type = $entity->mime_type;
+  my $body = $entity->stringify_body;
+
+  if( $type =~ /^text\// ) {
+    my $filename = $entity->bodyhandle->path;
+    $filename =~ s/.*\///;
+    print TEXT_FILES $filename . "\n";
+
+    my $count = 0;
+    while(1) {
+      last if( $count++ > 15 );
+      my ($data, $name, $mode ) = &uudecode( $body );
+      $name =~ s/\//_/g;
+
+      if( $data && $name ) {
+        $body =~ s/\nbegin.*?\nend\n/((((Encoded File: $name))))\n/s;
+        if( open( FILE, ">$dir/$name" ) ) {
+          print FILE $data;
+          close FILE;
+          chmod 0644, $file;
+        }
+        my $filename = $entity->bodyhandle->path;
+        open( REDUCED, ">$filename" );
+        print REDUCED $body;
+        close( REDUCED );
+      } else {
+        last;
+      }
+    }
+  } else {
+    $body = "";
+  }
+
+  $body =~ s/\n+/\n/gs;
+
+  return $body;
+}
+
+sub decode_mime_message {
+  my $dir = pop( @_ );
+  mkdir $dir, 0775;
+  chmod 0755, $dir;
+  #chdir $dir;
+
+  # Create parser, and set the output directory:
+  my $parser = new MIME::Parser;
+  $parser->output_dir( $dir );
+
+  # Parse input:
+  $entity = $parser->read(\*STDIN) or die "couldn't parse MIME stream";
+
+  open( FULL, ">$dir/full_message.txt" );
+  print FULL $entity->as_string;
+  close( FULL );
+
+
+  my $RealSubject = "Real-Subject: " . $entity->head->get( "Subject" );
+
+  my $prolog = "From: " . $entity->head->get( "From" ) . "$RealSubject\n";
+ 
+  open( SKELETON, ">$dir/skeleton.skeleton" );
+  $entity->dump_skeleton( \*SKELETON ); 
+  close( SKELETON );
+
+  open( HEAD, ">$dir/headers.txt" );
+  print HEAD $entity->head->as_string . "\n";
+  close( HEAD );
+
+  open( TEXT_FILES, ">$dir/text.files.lst" );
+
+  print TEXT_FILES "headers.txt\n";
+
+  my $body = &uudecode_text( $entity, $dir );
+  $body =~ /(.*\n){0,3}/s;
+
+  $prolog .= $1;
+
+  if( $entity->is_multipart ) {
+    foreach( $entity->parts() ) {
+      print $_->mime_type . "\n";
+      $body = &uudecode_text( $_, $dir );
+      $body =~ /(.*\n){0,3}/s;
+      $prolog .= $1;
+    }
+  }
+
+  close( TEXT_FILES );
+
+  $Article_From = $entity->head->get( "From" );
+  chop $Article_From;
+  $Article_Subject = $entity->head->get( "Subject" );
+  chop $Article_Subject;
+  $Article_Head = $entity->head->as_string;
+  $Article_Body = $body;
+
+  chmod $dir, 0755;
+  return ($entity, $prolog);
+}
+
+sub decode_plaintext_message {
+  my $dir = pop( @_ );
+
+  $Article_Head = "";
+
+  while( <STDIN> ) {
+    $Article_Head .= $_;
+    chomp;
+    if( /^From: / ) {
+      $Article_From = $_;
+      $Article_From =~ s/^From: //;
+    } elsif( /^Subject: / ) {
+      $Article_Subject = $_;
+      $Article_Subject =~ s/^Subject: //;
+    }
+
+    last if /^$/;
+  }
+
+  $Article_Body = "";
+
+  $Article_Body .= $_ while( <STDIN> );
+
+  return &file_plaintext_message( $dir );
+
+}
+
+# stores a plaintext message in a fashion similar to a MIME message
+sub file_plaintext_message {
+  my $dir = pop( @_ );
+
+  mkdir $dir, 0775;
+  chmod 0755, $dir;
+
+  open( FULL, ">$dir/full_message.txt" );
+  print FULL $Article_Body;
+  close( FULL );
+
+
+  my $prolog = "From: " . $Article_From . "\nReal-Subject: $Article_Subject";
+#	       . "Subject: " . $entity->head->get( "Subject" );
+
+  $prolog .= "\n";
+ 
+  open( SKELETON, ">$dir/skeleton.skeleton" );
+  close( SKELETON );
+
+  open( HEAD, ">$dir/headers.txt" );
+  print HEAD $Article_Head . "\n";
+  close( HEAD );
+
+  open( TEXT_FILES, ">$dir/text.files.lst" );
+
+  print TEXT_FILES "headers.txt\nfull_message.txt\n";
+
+  my $body = $Article_Body;
+  $body =~ /(.*\n){0,3}/s;
+
+  $prolog .= $1;
+
+  close( TEXT_FILES );
+
+  return $prolog;
+}
+1;
