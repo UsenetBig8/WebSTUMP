@@ -1,0 +1,40 @@
+This is WebSTUMP v2.0. 
+
+INSTALLATION:
+
+0) [OPTIONAL] If you plan on moderating a picture newsgroup (a newsgroup
+with uuencoded or MIME-encoded binaries), you have to install several
+perl modules:
+
+MIME::Tools
+Convert::UU
+
+If you plan on moderating a text newsgroup, skip this step.
+
+1) Edit Makefile
+2) type make
+3) Edit config/webstump.cfg
+4) Create a symbolic link from your cgi-bin directory to the bin/wrapper
+   program
+5) Use create-newsgroup.pl perl script to create newsgroups.
+6) Edit your .procmailrc and add a recipe like this:
+
+######################################################################
+#
+# WebStump-related recipes
+#
+
+:0
+* ^X-Moderate-For:
+| $HOME/public_html/stump/webstump/scripts/file-message.pl
+
+7) Edit your admin/etc/modenv file and create a pseudo moderator
+like this:
+
+webstump@your.site	1	NO_BOARD_LIST,NO_ADVICE_LIST
+
+and make sure that all other mods are on vacation (set flag to 0).
+
+webstump@your.site should be substituted with an address where
+webstump resides 9and whose .procmailrc you just edited).
+
