@@ -1,0 +1,115 @@
+# These functions are useful for Gatekeeper product.
+
+# check if the header line is to be ignored
+sub ignore_header {
+  my $header = pop( @_ );
+  my @delete_headers = ( "NNTP-Posting-Host", "X-Originating-IP",
+                         "Received", "Recieved", "Date", "X400",
+                         "Approved" );
+  foreach (@delete_headers) {
+    return "yes" if( $header =~ /^$_:/i );
+  }
+
+  return ""; # no
+}
+
+
+######################################################################
+# this function reads an article from a file and prepares it for posting.
+sub prepareArticle {
+
+  my $file = pop( @_ );
+
+  my @delete_headers = ( "NNTP-Posting-Host", "X-Originating-IP",
+			 "Received", "Recieved", "Date", "X400",
+                         "Approved" );
+
+  open ARTICLE, $file || return "";
+
+  my $headers = "", $body = "";
+
+  # headers
+  my $header = "";
+  my $newsgroups_present = 0;
+
+  # header
+  while( <ARTICLE> ) {
+
+    next if( /^From /);
+
+    if( /^$/ || /^\S/ ) { # non-whitespace or empty line
+      if( $header ) {
+        # process old header
+	if( &ignore_header( $header ) ) {
+          $header = "";
+          next;
+        }
+
+	if( $header =~ /^Newsgroups: / ) {
+          $newsgroups_present = 1;
+          if( ! ($header =~ $newsgroup)) {
+            chop $header;
+            $header .= ",$newsgroup\n";
+          }
+        }
+
+        $headers .= $header;
+        last if $_ eq "\n";
+      }
+
+      $header = $_;
+    } else { # whitespace
+      $header .= $_;
+    }
+  }
+
+  $headers .= "$newsgroup\n" if( !$newsgroups_present );
+
+  $body .= $_ while( <ARTICLE> );
+
+print "Header:\n\n$header\nBody:\n\n$body\n";
+
+  return $headers . $body;
+}
+
+# processApproved file comment
+sub processApproved {
+  my $comment = pop( @_ );
+  my $file = pop( @_ );
+
+  my $article = &prepareArticle( $file );
+
+  if( $comment ) {
+    $article .= "
+=================================================================
+== Moderator's comment: $comment\n";
+  }
+
+  &email_message( $article, $posting_gateway ) if( $posting_gateway );
+  
+  if( $posting_spool_dir ) {
+    my $time = time;
+    my $spoolfile = "$posting_spool_dir/$$.$time";
+    open( SPOOL, ">$posting_spool_dir/$$.$time" ) 
+      || &error( "Can't open $spoolfile" );
+    print SPOOL $message;
+    close( SPOOL );
+  }
+}
+
+
+# processDecision file decision+reason comment
+sub gk_approval_decision{
+  my $comment = pop( @_ );
+  my $decision = pop( @_ );
+  my $file = pop( @_ );
+
+  if( $decision eq "approve" ) {
+    &processApproved( $file, $comment );
+  } elsif( $decision eq "reject" ) {
+    my ($dummy, $reason) = split( $decision );
+    &processRejected( $file, $reason, $comment );
+  }
+}
+
+1;
