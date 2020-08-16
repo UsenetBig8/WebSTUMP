@@ -28,7 +28,7 @@ CC = cc
 all: verify c_compile
 
 verify:
-	if [ ! -x $(WEBSTUMP_HOME)/scripts/webstump.pl ] ;  then	\
+	@if [ ! -x $(WEBSTUMP_HOME)/scripts/webstump.pl ] ;  then	\
 		echo $(WEBSTUMP_HOME)/scripts/webstump.pl does not; 	\
 		echo point to a valid perl script.;			\
 		echo Check the value of WEBSTUMP_HOME in Makefile;	\
