@@ -38,3 +38,13 @@ and make sure that all other mods are on vacation (set flag to 0).
 webstump@your.site should be substituted with an address where
 webstump resides 9and whose .procmailrc you just edited).
 
+-------------------------------------------------------------------
+
+The following notice applies to this document and all other files in
+this package that do not carry a separate copyright and licence
+notice:
+
+Copyright 1999 Igor Chudov. This work is licensed under the Creative
+Commons Attribution 4.0 International License. To view a copy of this
+license, visit http://creativecommons.org/licenses/by/4.0/ or send a
+letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
