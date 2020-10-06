@@ -40,9 +40,74 @@ webstump resides 9and whose .procmailrc you just edited).
 
 -------------------------------------------------------------------
 
-The following notice applies to this document and all other files in
-this package that do not carry a separate copyright and licence
-notice:
+The following notice applies to this document and to the following
+files in this package, to the extent that they are copyrightable:
+
+doc/help/bad.posters.list.html
+doc/help/bad.words.list.html
+doc/help/filter-lists.html
+doc/help/good.subjects.list.html
+doc/help/watch.posters.list.html
+doc/help/good.posters.list.html
+doc/help/watch.words.list.html
+doc/help/watch.subjects.list.html
+doc/help/bad.subjects.list.html
+bin/q
+queues/demo.newsgroup/dir_927743674_11815/stump-prolog.txt
+queues/demo.newsgroup/dir_927743674_11815/msg-11815-1.doc
+queues/demo.newsgroup/dir_927743674_11815/text.files.lst
+queues/demo.newsgroup/dir_927743674_11815/full_message.txt
+queues/demo.newsgroup/dir_927743674_11815/skeleton.skeleton
+queues/demo.newsgroup/dir_927743674_11815/headers.txt
+queues/demo.newsgroup/dir_927745214_12598/stump-prolog.txt
+queues/demo.newsgroup/dir_927745214_12598/stump-warning.txt
+queues/demo.newsgroup/dir_927745214_12598/HAPPY99.EXE
+queues/demo.newsgroup/dir_927745214_12598/text.files.lst
+queues/demo.newsgroup/dir_927745214_12598/full_message.txt
+queues/demo.newsgroup/dir_927745214_12598/msg-12598-1.doc
+queues/demo.newsgroup/dir_927745214_12598/skeleton.skeleton
+queues/demo.newsgroup/dir_927745214_12598/headers.txt
+queues/demo.newsgroup/dir_927743664_11810/stump-prolog.txt
+queues/demo.newsgroup/dir_927743664_11810/msg-11810-1.doc
+queues/demo.newsgroup/dir_927743664_11810/text.files.lst
+queues/demo.newsgroup/dir_927743664_11810/full_message.txt
+queues/demo.newsgroup/dir_927743664_11810/skeleton.skeleton
+queues/demo.newsgroup/dir_927743664_11810/headers.txt
+config/newsgroups/demo.newsgroup/watch.words.list
+config/newsgroups/demo.newsgroup/bad.subjects.list
+config/newsgroups/demo.newsgroup/watch.posters.list
+config/newsgroups/demo.newsgroup/bad.posters.list
+config/newsgroups/demo.newsgroup/blacklist
+config/newsgroups/demo.newsgroup/watch.subjects.list
+config/newsgroups/demo.newsgroup/good.subjects.list
+config/newsgroups/demo.newsgroup/whitelist
+config/newsgroups/demo.newsgroup/address.txt
+config/newsgroups/demo.newsgroup/moderators
+config/newsgroups/demo.newsgroup/rejection-reasons
+config/newsgroups/demo.newsgroup/good.posters.list
+config/newsgroups/test.newsgroup/watch.words.list
+config/newsgroups/test.newsgroup/bad.subjects.list
+config/newsgroups/test.newsgroup/watch.posters.list
+config/newsgroups/test.newsgroup/bad.posters.list
+config/newsgroups/test.newsgroup/blacklist
+config/newsgroups/test.newsgroup/watch.subjects.list
+config/newsgroups/test.newsgroup/good.subjects.list
+config/newsgroups/test.newsgroup/whitelist
+config/newsgroups/test.newsgroup/address.txt
+config/newsgroups/test.newsgroup/moderators
+config/newsgroups/test.newsgroup/rejection-reasons
+config/newsgroups/test.newsgroup/good.posters.list
+config/admin_password.txt
+config/motd
+demo/review.html
+demo/password.html
+demo/welcome.html
+demo/login.html
+demo/main-screen.html
+demo/error.html
+tmp/demo.mime.txt
+tmp/demo.text.txt
+tmp/demo.happy99.txt
 
 Copyright 1999 Igor Chudov. This work is licensed under the Creative
 Commons Attribution 4.0 International License. To view a copy of this
