@@ -43,15 +43,6 @@ webstump resides 9and whose .procmailrc you just edited).
 The following notice applies to this document and to the following
 files in this package, to the extent that they are copyrightable:
 
-doc/help/bad.posters.list.html
-doc/help/bad.words.list.html
-doc/help/filter-lists.html
-doc/help/good.subjects.list.html
-doc/help/watch.posters.list.html
-doc/help/good.posters.list.html
-doc/help/watch.words.list.html
-doc/help/watch.subjects.list.html
-doc/help/bad.subjects.list.html
 bin/q
 queues/demo.newsgroup/dir_927743674_11815/stump-prolog.txt
 queues/demo.newsgroup/dir_927743674_11815/msg-11815-1.doc
