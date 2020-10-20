@@ -99,12 +99,6 @@ config/newsgroups/test.newsgroup/rejection-reasons
 config/newsgroups/test.newsgroup/good.posters.list
 config/admin_password.txt
 config/motd
-demo/review.html
-demo/password.html
-demo/welcome.html
-demo/login.html
-demo/main-screen.html
-demo/error.html
 tmp/demo.mime.txt
 tmp/demo.text.txt
 tmp/demo.happy99.txt
