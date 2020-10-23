@@ -31,3 +31,8 @@ womb, unsecurely ripped.  Does a PC play MP3 in the woods?   Run a
 tap from the secure device's speaker to your sound card.  Hit record.
 Share it with your friends. Bits want to be free!
 
+-- 
+Copyright 1999 Igor Chudov. This work is licensed under the Creative
+Commons Attribution 4.0 International License. To view a copy of this
+license, visit http://creativecommons.org/licenses/by/4.0/ or send a
+letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.

@@ -69,9 +69,6 @@ config/newsgroups/test.newsgroup/rejection-reasons
 config/newsgroups/test.newsgroup/good.posters.list
 config/admin_password.txt
 config/motd
-tmp/demo.mime.txt
-tmp/demo.text.txt
-tmp/demo.happy99.txt
 
 Copyright 1999 Igor Chudov. This work is licensed under the Creative
 Commons Attribution 4.0 International License. To view a copy of this

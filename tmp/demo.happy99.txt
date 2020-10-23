@@ -567,3 +567,9 @@ M,34Q7B1"25PQ62]85U]0(C!453Q+,3$V)%U3-D5,/U\Y"F`*96YD"@I>7EY>
 H7@H*5V5L;"P@=&AE<F4@:7,@=&AE('!I8R$A(0H*"2T@26=O<BX*"@``
 `
 end
+
+-- 
+Copyright 1999 Igor Chudov. This work is licensed under the Creative
+Commons Attribution 4.0 International License. To view a copy of this
+license, visit http://creativecommons.org/licenses/by/4.0/ or send a
+letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
