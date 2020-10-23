@@ -44,26 +44,6 @@ The following notice applies to this document and to the following
 files in this package, to the extent that they are copyrightable:
 
 bin/q
-queues/demo.newsgroup/dir_927743674_11815/stump-prolog.txt
-queues/demo.newsgroup/dir_927743674_11815/msg-11815-1.doc
-queues/demo.newsgroup/dir_927743674_11815/text.files.lst
-queues/demo.newsgroup/dir_927743674_11815/full_message.txt
-queues/demo.newsgroup/dir_927743674_11815/skeleton.skeleton
-queues/demo.newsgroup/dir_927743674_11815/headers.txt
-queues/demo.newsgroup/dir_927745214_12598/stump-prolog.txt
-queues/demo.newsgroup/dir_927745214_12598/stump-warning.txt
-queues/demo.newsgroup/dir_927745214_12598/HAPPY99.EXE
-queues/demo.newsgroup/dir_927745214_12598/text.files.lst
-queues/demo.newsgroup/dir_927745214_12598/full_message.txt
-queues/demo.newsgroup/dir_927745214_12598/msg-12598-1.doc
-queues/demo.newsgroup/dir_927745214_12598/skeleton.skeleton
-queues/demo.newsgroup/dir_927745214_12598/headers.txt
-queues/demo.newsgroup/dir_927743664_11810/stump-prolog.txt
-queues/demo.newsgroup/dir_927743664_11810/msg-11810-1.doc
-queues/demo.newsgroup/dir_927743664_11810/text.files.lst
-queues/demo.newsgroup/dir_927743664_11810/full_message.txt
-queues/demo.newsgroup/dir_927743664_11810/skeleton.skeleton
-queues/demo.newsgroup/dir_927743664_11810/headers.txt
 config/newsgroups/demo.newsgroup/watch.words.list
 config/newsgroups/demo.newsgroup/bad.subjects.list
 config/newsgroups/demo.newsgroup/watch.posters.list
