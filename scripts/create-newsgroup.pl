@@ -61,9 +61,10 @@ print "Creating files in $dir...";
 &append_to_file( "$dir/blacklist", "" );
 &append_to_file( "$dir/moderators", "ADMIN \U$password\n" );
 &append_to_file( "$dir/rejection-reasons", 
-"offtopic::a blatantly offtopic article, spam
+"offtopic::a blatantly offtopic article
 harassing::message of harassing content
 charter::message poorly formatted
+ignore::Discard message without notifying sender (spam etc)
 " );
 &append_to_file( "$dir/whitelist", "" );
 print " done.\n";

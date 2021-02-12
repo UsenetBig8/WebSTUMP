@@ -385,6 +385,7 @@ sub admin_add_newsgroup {
 "offtopic::a blatantly offtopic article, spam
 harassing::message of harassing content
 charter::message poorly formatted
+ignore::Discard message without notifying sender (spam etc)
 " );
   &append_to_file( "$dir/whitelist", "" );
   print " done.\n";
