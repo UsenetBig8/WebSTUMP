@@ -49,7 +49,7 @@ $html_mode = "yes";
 
 $command = "";
 
-if( defined %request ) {
+if( %request ) {
   &disinfect_request;
   $command = $request{'action'} if( defined $request{'action'} );
 }
