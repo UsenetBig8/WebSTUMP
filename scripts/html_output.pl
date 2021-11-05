@@ -641,8 +641,21 @@ sub html_newsgroup_management {
 
   &link_to_help( "filter-lists", "filtering lists" );
 
+  print "</FORM>\n";
+  
+  # Control behaviour for bad Newsgroups header
+  print <<"END";
+<HR>
+<FORM METHOD=$request_method action=$base_address>
+  <INPUT NAME=action VALUE=manage_bad_newsgroups_header TYPE=hidden>
+END
+  &html_print_credentials;
+  print <<'END';
+  <INPUT TYPE=submit VALUE="Manage bad Newsgroups header action">
+</FORM>
+END
   print "
-  </FORM><HR>
+  <HR>
 
   List of current moderators:<P>
 
@@ -657,6 +670,60 @@ sub html_newsgroup_management {
   &end_html;
 }
 
+sub manage_bad_newsgroups_header {
+  my ($newsgroup) = @_;
+  my ($actions, $default) = get_bad_newsgroups_header_options($newsgroup);
+  &read_rejection_reasons;
+  my $options = [
+    { value => "noAction", text => "Fix header only"},
+    { value => "warn", text => "Fix header and show warning"},
+    map { {value  => "reject $_", text => "reject $_: $rejection_reasons{$_}"} }
+      sort(keys %rejection_reasons)
+  ];
+
+  &begin_html( "Edit bad Newsgroups header actions for $newsgroup" );
+  print <<"END";
+  <p>Messages sent directly to the group submission address as email
+  rather than from a news client or via a news server may not have
+  a Newsgroups: header of the proper form.</p>
+  <p>In particular, email sent by spam-bots probably omits the header.</p>
+  <p>You can select here what action to take for the various cases.</p>
+
+<form method=$request_method action=$base_address>
+END
+  &html_print_credentials;
+
+  foreach my $item (@$default) {
+    if ($item->{kind}) {
+      my $kind = $item->{kind};
+      my $id = "kind.$kind";
+      my $name = $kind;
+      my $label = $item->{text};
+      print <<"END";
+      <p>
+    <select id="$id" name="$name">
+END
+      foreach my $option (@$options) {
+        my $selected = $actions->{$kind} eq $option->{value} ? ' selected' : q{};
+      print <<"END";
+     <option value="$option->{value}"$selected>$option->{text}</option>
+END
+      }
+      print <<"END";
+    </select> $label
+    </p>
+END
+    }
+  }
+
+  print <<"END";
+<button type=submit name=action value=manage_bad_newsgroups_header_set>Set</button>
+<button type=submit name=action value=manage_bad_newsgroups_header_cancel>Cancel</button>
+</form>
+END
+
+  &end_html;
+}
 
 # edit config list
 sub edit_configuration_list {

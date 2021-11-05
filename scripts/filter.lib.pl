@@ -86,6 +86,18 @@ sub name_is_in_list { # address, listname
   return $Result;
 }
 
+######################################################################
+#
+# If STUMP reported a bad Newsgroups header get what kind
+# Use the Article_Head global for now as that is easier than picking
+# headers out of the whole message.
+#
+######################################################################
+sub get_bad_newsgroups_warning {
+  my ($message) = @_;
+  my ($kind) = $Article_Head =~ m{^X-STUMP-Warning: Newsgroups header (\w+)$}m;
+  return $kind || q{};
+}
 
 ######################################################################
 # reviews incoming message and decides: approve, reject, keep
@@ -102,6 +114,21 @@ sub review_incoming_message { # Newsgroup, From, Subject, RealSubject, Message, 
   my $from = pop( @_ );
   my $newsgroup = pop( @_ );
 
+  my $warning_file = &article_file_name( $dir ) . "/stump-warning.txt";
+
+  # Deal with bad Newsgroups header
+  if( my $bad_header_kind = get_bad_newsgroups_warning($message)) {
+    my ($actions, $default) = get_bad_newsgroups_header_options($newsgroup);
+    my $action = $actions->{$bad_header_kind};
+    print LOG "Bad Newsgroups: header - $bad_header_kind - $action\n";
+    if ($action eq 'warn') {
+      &append_to_file( $warning_file, "Warning: Newsgroups header $bad_header_kind\n" );
+    } elsif ($action =~ m/^reject/) {
+      &process_approval_decision( $subject, $newsgroup, $dir, $action, "auto Newsgroups header $bad_header_kind" );
+      return;
+    }
+    # noAction should be the only other possibility but unknown cases will be treeeateeed the same way.
+  }
   if( &name_is_in_list( $from, "bad.posters.list" ) ) {
     &process_approval_decision( $subject, $newsgroup, $dir, "reject abuse", "" );
     return;

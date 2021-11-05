@@ -173,6 +173,58 @@ sub init_webstump {
   print LOG "Call from $ENV{'REMOTE_ADDR'}, QUERY_STRING=$ENV{'QUERY_STRING'}\n";
 }
 
+# Lazy loading of the bad header options
+my $bad_newsgroups_header_options = {};
+sub get_bad_newsgroups_header_options {
+  my ($newsgroup) = @_;
+  my $default = [
+    { kind => 'missing', value => 'warn', text => 'when Newsgroups header is missing'},
+    { kind => 'empty', value => 'warn', text => 'when Newsgroups header is empty'},
+    { kind => 'nogroup', value => 'warn', text => 'when Newsgroups header does not name the group'}
+  ];
+  
+  if ($bad_newsgroups_header_options->{$newsgroup}) {
+    return ($bad_newsgroups_header_options->{$newsgroup}, $default);
+  }
+  my $file = full_config_file_name('bad-newsgroups-header.cfg');
+  # extract options and default values
+  my $options = { map { ($_->{kind}, $_->{value}) } @$default };
+  if (-r $file) {
+    print LOG "reading options from $file\n";
+    open(my $fh, "<", $file) || die "$! $file";
+    while (my $line = <$fh>) {
+      # skip anything of the wrong format
+      if ($line =~ m/^\s*(?<opt>\w+)\s*:\s*(?<val>\w+(?:\s+\w+)*)\s*$/) {
+        $options->{$+{opt}} = $+{val};
+      }
+    }
+    close($fh);
+  }
+  foreach my $k (sort(keys(%$options))) {
+    print LOG "option $k:$options->{$k}\n";
+  }
+  $bad_newsgroups_header_options->{$newsgroup} = $options;
+  return ($options, $default);
+}
+
+sub manage_bad_newsgroups_header_set {
+  my ($newsgroup) = @_;
+  my $file = full_config_file_name('bad-newsgroups-header.cfg');
+  my ($opts, $default) = get_bad_newsgroups_header_options($newsgroup);
+
+printf LOG "Writing actions to $file\n";
+  open_file_for_writing( LIST, "$file.new" ) 
+    || &error( "Could not open $file for writing" );
+  foreach my $item (@$default) {
+    my $k = $item->{kind};
+    $opts->{$k} = $request{$k};
+    printf LIST "%s:%s\n", $k, $opts->{$k};
+printf LOG "%s:%s\n", $k, $opts->{$k};
+  }
+  close( LIST );
+  rename ("$file.new", "$file");
+}
+
 # gets the directory name for the newsgroup
 sub getQueueDir {
   my $newsgroup = pop( @_ );
@@ -634,7 +686,16 @@ sub processWebRequest {
 
     &set_config_list;
     &html_newsgroup_management;
-  } elsif( $action eq "delete_user" ) {
+  } elsif( $action eq "manage_bad_newsgroups_header" ) {
+    &authenticate( $newsgroup, $moderator, $password );
+    manage_bad_newsgroups_header($newsgroup);
+  } elsif( $action eq "manage_bad_newsgroups_header_set" ) {
+    &authenticate( $newsgroup, $moderator, $password );
+    manage_bad_newsgroups_header_set($newsgroup);
+    &html_newsgroup_management;
+  } elsif( $action eq "manage_bad_newsgroups_header_cancel" ) {
+    &html_newsgroup_management;
+   } elsif( $action eq "delete_user" ) {
     &authenticate( $newsgroup, $moderator, $password );
     if( $moderator ne "admin" ) {
       &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
