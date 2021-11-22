@@ -28,7 +28,13 @@ sub begin_html {
   my $title = pop( @_ );
   print 
 "Content-Type: text/html\n\n
+<html>
+<head>
 <TITLE>$title</TITLE>
+<style>
+  .modcomment label,textarea { vertical-align: middle; }
+</style>
+</head>
 <BODY BGCOLOR=\"#C5C5FF\" BACKGROUND=$base_address_for_files/images/bg1.jpg>
 <H1>$title</H1>\n\n";
 
@@ -42,6 +48,8 @@ sub end_html {
   print "\n<HR>Thank you for using <A HREF=$STUMP_URL>STUMP Robomoderator</A>.
 <BR>
 Click <A HREF=$base_address>here</A> to return to WebSTUMP.
+</body>
+</html>
 ";
 }
 
@@ -262,9 +270,12 @@ sub html_moderate_article {
         print "<OPTION VALUE=\"reject $_\">Reject -- $rejection_reasons{$_}</OPTION>\n";
       }
 
-      print "<BR>";
+      print "</SELECT>\n";
 
-      print "</SELECT><BR> Comment: <INPUT NAME=comment VALUE=\"\" SIZE=80><BR>";
+      print qq{<div class="modcomment">\n};
+      print qq{<label for="modcomment">Comment:</label>\n};
+      print qq{<textarea  id="modcomment" name="comment" rows="5" cols="72"></textarea>\n};
+      print qq{</div>\n};
 
   print "<BR>
 <INPUT TYPE=radio NAME=poster_decision VALUE=nothing CHECKED>Don't change poster's status</INPUT>
