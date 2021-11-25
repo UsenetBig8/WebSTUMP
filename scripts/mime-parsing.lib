@@ -170,7 +170,7 @@ sub file_plaintext_message {
   my $prolog = "From: " . $Article_From . "\nReal-Subject: $Article_Subject";
 #	       . "Subject: " . $entity->head->get( "Subject" );
 
-  $prolog .= "\n";
+  $prolog .= "\n\n";
  
   open( SKELETON, ">$dir/skeleton.skeleton" );
   close( SKELETON );
