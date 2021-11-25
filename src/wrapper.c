@@ -28,12 +28,17 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 const char * webstump_home = WEBSTUMP_HOME;
 
 const char * script_name = "scripts/webstump.pl";
+
+#define SCRIPT_FILE_NAME_MAX 1024
+#define MESSAGE_MAX 100
 
 const char *safe_env[] = {
 	"SERVER_SOFTWARE",
@@ -66,8 +71,8 @@ int main( int argc, char * argv[] ) /* argv is ignored */
 {
   char * new_env[ 1000 ];       /* new environment */
   char * new_argv[] = { NULL }; /* no arguments    */
-  char script_file_name[ 1024 ];
-  char buf[1024];
+  char script_file_name[ SCRIPT_FILE_NAME_MAX ];
+  char buf[ SCRIPT_FILE_NAME_MAX+MESSAGE_MAX ];
   int i, new_env_i;
   struct stat stat_buf;
 
@@ -89,7 +94,10 @@ int main( int argc, char * argv[] ) /* argv is ignored */
   new_env[new_env_i] = NULL;
 
   /* check existence and ownership of the perl script */
-
+  if (strlen(webstump_home) + 1 + strlen(script_name) + 1 > SCRIPT_FILE_NAME_MAX) {
+      cgi_error( "Script name too long for buffer" );
+      exit( 0 );
+  }
   strcpy( script_file_name, webstump_home );
   strcat( script_file_name, "/" );
   strcat( script_file_name, script_name );
