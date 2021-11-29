@@ -22,7 +22,7 @@
 
 if( $use_mime eq "yes" ){
   require MIME::Parser;
-  require Convert::UU; import uudecode;
+  require Convert::UU; Convert::UU->import(qw{uudecode});
 }
 
 sub uudecode_text {

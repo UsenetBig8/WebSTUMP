@@ -425,7 +425,7 @@ sub print_images {
     $extension =~ s/^.*\.//;
     $extension = "\L$extension";
     
-    if( $extension eq "gif" || $extension eq "jpg" || $extension eq "jpeg" ) {
+    if( $extension =~ m{^(:?gif|jpe?g|png)} ) {
       print "<CENTER> <IMG SRC=$base_address_for_files/queues/$newsgroup/$web_subdir/$_></CENTER><HR>\n";
       $count++;
     } else {
