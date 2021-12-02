@@ -533,7 +533,7 @@ sub email_message {
 }
 
 sub article_file_name {
-  my $file = pop( @_ );
+  my ($newsgroup, $file) = @_;
   return "$queues_dir/$newsgroup/$file";
 }
 
@@ -572,7 +572,7 @@ sub approval_decision {
       s/\///;
       my $file = &untaint( $_ );
 
-      my $fullpath = &article_file_name( $file ) . "/stump-prolog.txt"; # untainted
+      my $fullpath = article_file_name($newsgroup, $file) . "/stump-prolog.txt"; # untainted
 
       $decision = "reject thread" if $thread_decision eq "ban";
       $decision = "approve" if $thread_decision eq "preapprove";
@@ -580,10 +580,10 @@ sub approval_decision {
       $decision = "reject abuse" if $poster_decision eq "ban";
       $decision = "approve" if $poster_decision eq "preapprove";
 
-      if( -r $fullpath && open( MESSAGE, "$fullpath" ) ) {
+      if( -r $fullpath && open( my $prologFH, "<:encoding(UTF-8)", "$fullpath" ) ) {
 
         my $RealSubject = "", $From = "", $Subject = "";
-        while( <MESSAGE> ) {
+        while( <$prologFH> ) {
           if( /^Subject: /i ) {
 	    chop;
             $Subject = $_;
@@ -600,7 +600,7 @@ sub approval_decision {
           }
           last if /^$/;
         }
-        close MESSAGE;
+        close $prologFH;
 
         &add_to_config_file( "good.posters.list", $From ) 
 		if $poster_decision eq "preapprove";

@@ -17,74 +17,90 @@
 # You should have received a copy of the GNU General Public License
 # along with WebSTUMP.  If not, see <https://www.gnu.org/licenses/>.
 #
+use strict;
+use warnings;
+
 # This script reads a message from stdin, figures out which newsgroup's
 # queue it should be saved to, and saves it.
 #
 #
 # Figure out the home directory
-#
-
-umask 022;
-
-if( !($0 =~ /\/scripts\/file-message\.pl$/) ) {
-  die "This script can only be called with full path name!!!";
+# Do this in a BEGIN so that the script directory can be added to @INC
+# so that 'use' works in a convenient way.
+BEGIN {
+  our ($webstump_home) = $0 =~ m{^(.*)/scripts/file-message\.pl$};
+  if ( !$webstump_home ) {
+    # In a BEGIN 'die' causes compilation failure so exit instead.
+    print STDERR "This script can only be called with full path name!!!";
+    exit(1);
+  }
+  push @INC, "$webstump_home/scripts";
 }
-
-$webstump_home = $0;
-$webstump_home =~ s/\/scripts\/file-message\.pl$//;
+umask 022;
+our $webstump_home;
 
 require "$webstump_home/config/webstump.cfg";
-require "$webstump_home/scripts/webstump.lib.pl";
-require "$webstump_home/scripts/filter.lib.pl";
-require "$webstump_home/scripts/mime-parsing.lib";
+require "webstump.lib.pl";
+require "filter.lib.pl";
 
 &init_webstump;
 
-$time = time;
-$directory = "$webstump_home/tmp/dir_$time" . "_$$";
+my $time      = time;
+my $dir       = "dir_${time}_$$";
+my $directory = "$webstump_home/tmp/$dir";
+mkdir( $directory, 0775 );
 
-$Subject = "";
+my $message;
+our $use_mime;
+if( $use_mime eq "yes" ) {
+  require Webstump::MIME;
+  $message = Webstump::MIME::parseMessage($directory);
+} else { # no MIME
+  require "mime-parsing.lib";
+  my $newsgroup;
+  my $Subject;
+  our ($Article_From,$Article_Subject,$Article_Head,$Article_Body);
+  while( <STDIN> )
+  {
+    chop;
+    if( /^X-Moderate-For: / ) {
+      s/^X-Moderate-For: //;
+      $newsgroup = $_;
+    } elsif ( /^Subject: / ) {
+      $Subject = $_;
+    } elsif ( /^$/ ) {
+      last;
+    }
+  }
 
-while( <STDIN> )
-{
-  chop;
-  if( /^X-Moderate-For: / ) {
-    s/^X-Moderate-For: //;
-    $newsgroup = $_;
-  } elsif ( /^Subject: / ) {
-    $Subject = $_;
-  } elsif ( /^$/ ) {
-    last;
+  die
+  "This message did not look like it came from STUMP because it did not
+  contain the X-Moderate-For: header"
+	if( !$newsgroup );
+
+  while( defined($_ = <STDIN>) && !($_ =~ /^\@+$/ )) {};
+
+  while( defined($_ = <STDIN>) && ($_ =~ /^$/ )) {};
+  my $prolog = &decode_plaintext_message( $directory );
+  $message = {
+    newsgroup => $newsgroup,
+    prolog => $Subject . "\n" . $prolog,
+    Subject => $Subject,
+    Article_From => $Article_From,
+    Article_Subject => $Article_Subject,
+    Article_Head => $Article_Head,
+    Article_Body => $Article_Body
   }
 }
 
-die
-"This message did not look like it came from STUMP because it did not
-contain the X-Moderate-For: header"
-	if( !$newsgroup );
+my $newsgroup = $message->{newsgroup};
 
-while( ($_ = <STDIN>) && !($_ =~ /^\@+$/ )) {};
+open( my $prologFH, ">:encoding(UTF-8)", "$directory/stump-prolog.txt" )
+  || die "open $directory/stump-prolog.txt $!";
+print $prologFH $message->{prolog};
+close($prologFH);
 
-#
-# this will also take away the "From " line.
-#
-while( ($_ = <STDIN>) && ($_ =~ /^$/ )) {};
-
-my ($entity, $prolog);
-
-if( $use_mime eq "yes" ) {
-  ($entity, $prolog) = &decode_mime_message( $directory );
-} else { # no MIME
-  $prolog = &decode_plaintext_message( $directory );
-}
-
-$prolog = $Subject . "\n" . $prolog;
-
-die "This message did not look like it came from STUMP because it did not
-    contain the X-Moderate-For: header"
-	if( !$newsgroup );
-
-$queue_dir = &getQueueDir( $newsgroup ) 
+my $queue_dir = &getQueueDir($newsgroup)
 	|| die "Newsgroup $newsgroup is not listed in the newsgroups database";
 
 mkdir $queue_dir, 0755; # it is OK if this fails
@@ -93,21 +109,9 @@ chmod 0755, $queue_dir;
 die "$queue_dir does not exist or is not writable"
 	if( ! -d $queue_dir || ! -w $queue_dir );
 
-open( PROLOG, ">$directory/stump-prolog.txt" );
-print PROLOG $prolog;
-close( PROLOG );
-
-#open( FULL, ">$directory/full_message.txt" );
-#print FULL $entity->as_string;
-#close( FULL );
-
-my $dir = "dir_$time" . "_$$";
 rename $directory, "$queue_dir/$dir";
 
-&init_webstump;
+our %request;
 $request{"newsgroup"} = $newsgroup;
 
-#sub review_incoming_message { # Newsgroup, From, Subject, Message, Dir
-
-&review_incoming_message( $newsgroup, $Article_From, $Subject, 
-                          $Article_Subject, $Article_Head . $Article_Body, $dir );
+&review_incoming_message( $message, $dir );

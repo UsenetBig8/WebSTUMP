@@ -23,21 +23,48 @@
 # bulky and not very interesting.
 #
 #
+use strict;
+use warnings;
+use HTML::Escape qw/escape_html/;
+
+# Declare the global variables
+our $base_address;
+our $base_address_for_files;
+our %moderators;
+our @newsgroups_array;
+our %newsgroups_index;
+our $queues_dir;
+our %rejection_reasons;
+our %request;
+our $request_method;
+our @short_rejection_reasons;
+our $STUMP_URL;
+our $webstump_config;
+our $webstump_home;
 
 sub begin_html {
   my $title = pop( @_ );
-  print 
-"Content-Type: text/html\n\n
+  print <<"END";
+Content-Type: text/html
+
 <html>
 <head>
+<meta charset="UTF-8">
 <TITLE>$title</TITLE>
 <style>
   .modcomment label,textarea { vertical-align: middle; }
+  span.hline:after,span.hline:before {
+    content:'\\A0\\A0\\A0\\A0\\A0\\A0';
+    text-decoration:line-through;
+  }
+  span.hline { font: small-caption; }
+  span.warning { color: red; }
 </style>
 </head>
-<BODY BGCOLOR=\"#C5C5FF\" BACKGROUND=$base_address_for_files/images/bg1.jpg>
-<H1>$title</H1>\n\n";
+<BODY BGCOLOR="#C5C5FF" BACKGROUND=$base_address_for_files/images/bg1.jpg>
+<H1>$title</H1>
 
+END
   if( &is_demo_mode ) {
     print "<B> You are operating in demonstration mode. User actions will have no effect.</B><HR>\n";
   }
@@ -142,8 +169,8 @@ sub html_login_screen {
 " Welcome to the Moderation  Center for  $newsgroup. Please bookmark
 this page. <HR>";
 
-
-  my $color = "", $end_color = "";
+  my $color     = "";
+  my $end_color = "";
 
   if( $count ) {
     $color = "<font color=red>";
@@ -216,44 +243,84 @@ of this installation. <HR>
   &end_html;
 }
 
-# main moderation page -- old version
+sub display_article {
+  my ($newsgroup, $file, $class, $limit) = @_;
+  my ($dir) = getQueueDir($newsgroup) =~ m{^(.+)$};
+  my $articleDir = "$dir/$file";
+  my $linkbase = "$base_address_for_files/queues/$newsgroup/$file";
+  my $partsList = "$articleDir/text.files.lst";
+  my $lineCount = defined($limit) ? $limit : 1;
+  my $inc = defined($limit) ? 1 : 0;
+  # TODO make this configurable via options in a web form
+  my $prefix = $class eq 'multi' ? sub {
+    my ($line) = @_;
+    chomp $line;
+    return substr(q{>>>>>>  } . $line, 0, 75) . "\n";
+  } : sub {
+     return @_;
+  };
+
+  if ( -d "$articleDir" && open( my $partsFH, "<", "$partsList" ) ) {
+    my @attachments = ();
+    print "<HR>\n" if &print_article_warning( $newsgroup, $file );
+
+    while ( my $part = <$partsFH> ) {
+      my ( $filename, $type, $disposition ) = $part =~ m{^(\S+)\s+(\S+)\s+(\S+)$};
+      if ($disposition eq 'attachment') {
+        push @attachments, { filename => $filename, type => $type };
+        next;
+      }
+      if ( $type eq "text/plain" && $lineCount > 0 ) {
+        print qq{<PRE class="$class">\n};
+        open( my $FH, "$articleDir/$filename" );
+        while (my $line = <$FH>) {
+          print escape_html($prefix->($line));
+          last if ($lineCount -= $inc) <= 0;
+        }
+        close($FH);
+        print "\n</PRE>\n\n";
+      } else {
+        print qq{<div><span class="hline">$type $filename</span></div>};
+        print qq{<div>\n};
+        inline_image($linkbase, $filename, $type);
+        print qq{</div>\n};
+        }
+      }
+    close($partsFH);
+    foreach my $a (@attachments) {
+      my $afile = $a->{filename};
+      my $link = "$linkbase/$afile";
+      my $type = $a->{type};
+      print(qq{<p>Attachment <a href="$link">$afile</a> $a->{type}</p>\n});
+    }
+  } else {
+    print "This message ($articleDir) no longer exists -- maybe it was " .
+          "approved or rejected by another moderator.";
+  }
+}
+# single article moderation page
 sub html_moderate_article {
-  my $newsgroup = &required_parameter( 'newsgroup' );
+  my ($newsgroup) = required_parameter('newsgroup') =~ m{^([\w.]+)$};
   my $moderator = $request{'moderator'};
   my $password = $request{'password'};
-  my $file = shift @_ || &required_parameter('file');
+  my ($file)      = ( shift @_ || &required_parameter('file') ) =~ m{^(\w+)$};
 
   &begin_html( "Main Moderation Screen: $newsgroup" );
   print "<HR>\n";
 
   &read_rejection_reasons;
 
-  my $dir = "$queues_dir/$newsgroup";
+  my $headers =article_file_name( $newsgroup, $file ) . "/headers.txt";
 
-  if( -d "$dir/$file" && open( TEXT_FILES, "$dir/$file/text.files.lst" ) ) {
-
-      print "<HR>\n" if &print_article_warning( $file );
-
-      print "<PRE>\n";
-      my $filename;
-      while( $filename = <TEXT_FILES> ) {
-        open( ARTICLE, "$dir/$file/$filename" );
-        while( <ARTICLE> ) {
-          s/</&lt;/g;
-          s/>/&gt;/g;
-          print;
-        }
-        close( ARTICLE );
-      }
-
-      print "\n</PRE>\n\n";
-
-      &print_images( $newsgroup, "$dir/$file", $file);
-
-  } else {
-    print "This message ($dir/$file) no longer exists -- maybe it was " .
-          "approved or rejected by another moderator.";
+  print qq{<PRE class="single header">\n};
+  open( my $FH, "$headers" );
+  while (my $line = <$FH>) {
+    print escape_html($line);
   }
+  close($FH);
+  print "\n</PRE>\n\n";
+
+  display_article($newsgroup, $file, "single");
 
       print "<HR>
 <FORM NAME=decision METHOD=$request_method action=$base_address>
@@ -381,7 +448,7 @@ sub admin_add_newsgroup {
   mkdir "$webstump_home/queues/$newsgroup", 0755;
   print " done.\n";
   
-  $dir = "$webstump_home/config/newsgroups/$newsgroup";
+  my $dir = "$webstump_home/config/newsgroups/$newsgroup";
   
   print "Creating $dir...";
   mkdir $dir, 0755;
@@ -409,52 +476,28 @@ ignore::Discard message without notifying sender (spam etc)
 
 #
 #
-sub print_images {
-  $web_subdir = pop( @_ );
-  $subdir = pop( @_ );
-  $newsgroup = pop( @_ );
+sub inline_image {
+  my ($base, $file, $type) = @_;
 
-  opendir( SUBDIR, $subdir );
-
-  my $count = 0;
-
-  while( $_ = readdir( SUBDIR ) ) {
-    my $file = "$subdir/$_";
-    next if( ! -f $file || ! -r $file );
-    my $extension = $file;
-    $extension =~ s/^.*\.//;
-    $extension = "\L$extension";
-    
-    if( $extension =~ m{^(:?gif|jpe?g|png)} ) {
-      print "<CENTER> <IMG SRC=$base_address_for_files/queues/$newsgroup/$web_subdir/$_></CENTER><HR>\n";
-      $count++;
-    } else {
-      my $filename = $_;
-      $filename =~ s/^.*\///;
-      next if $filename eq "skeleton.skeleton" 
-	      || $filename eq "headers.txt"
-              || $filename eq "full_message.txt"
-	      || $filename eq "text.files.lst"
-	      || $filename eq "stump-prolog.txt"
-	      || $filename eq "stump-warning.txt"
-	      || $filename =~ /msg-.*\.doc/;
-      
-      &print_image( "no_image.gif", "security warning" );
-      print "<B>Non-image attachment:</B><CODE>$filename</CODE> NOT SHOWN for security reasons.<BR>\n";
-    }
+  my ($subtype) = $type =~ m{^image/(gif|jpe?g|png)$};
+  my ($extension) = $file =~ m{\.(:?gif|jpe?g|png)$}i;
+  if ($subtype && $extension) {
+    print qq{<img src="$base/$file">};
+  } else {
+    print qq{<span class="warning">$type $file not shown</span>};
   }
-  return $count;
 }
 
 # prints warning if there is warning stored about the article
-sub print_article_warning { # short-subdir
-  my $file = pop( @_ );
+sub print_article_warning {
+  my ( $newsgroup, $file ) = @_;
 
-  my $warning_file = &article_file_name( $file ) . "/stump-warning.txt";
+  my $warning_file =
+    article_file_name( $newsgroup, $file ) . "/stump-warning.txt";
 
   if( -r $warning_file ) {
     open( WARNING, $warning_file );
-    $warning = <WARNING>;
+    my $warning = <WARNING>;
     $warning =~ s/</&lt;/g;
     $warning =~ s/>/&gt;/g;
     close( WARNING );
@@ -472,19 +515,21 @@ sub html_moderation_screen {
   my $moderator = $request{'moderator'};
   my $password = $request{'password'};
 
+  if ( ( $request{'next_screen'} || q{} ) eq 'single' ) {
 
-  if( $request{'next_screen'} eq 'single' ) {
     # we show a single article if the user so requested.
     # just get the first article from the queue if any, otherwise show 
     # an empty main screen.
    
-    my $dir = "$queues_dir/$newsgroup";
-    opendir( QUEUE, $dir ) || &error( "could not open directory $dir" );
+    my $dir = getQueueDir($newsgroup) || error("Unknown newsgroup $newsgroup");
+    opendir( QUEUE, $dir ) || error("could not open queue directory $dir");
   
     my $file;
-    while( $subdir = readdir( QUEUE ) ) {
-      if( -d "$dir/$subdir" && !($subdir =~ /^\.+/) 
-          && open( PROLOG, "$dir/$subdir/stump-prolog.txt" ) ) {
+    while ( my $subdir = readdir(QUEUE) ) {
+      if ( -d "$dir/$subdir"
+        && !( $subdir =~ /^\.+/ )
+        && -r "$dir/$subdir/stump-prolog.txt" )
+      {
 	      &html_moderate_article( $subdir );
 	      return;
       }
@@ -514,25 +559,22 @@ queue.\n";
   <INPUT NAME=action VALUE=approval_decision TYPE=hidden>";
     &html_print_credentials;
   
-  my $file, $subject = "No Subject", $from = "From nobody";
+  my $subject        = "No Subject";
+  my $from           = "From nobody";
   my $form_not_empty = "";
   my $article_count = 0;
   my $warning = "";
-  while( (($subdir = readdir( QUEUE )) && $article_count++ < 7 )) {
-    $file=$subdir;
-    if( -d "$dir/$subdir" && !($subdir =~ /^\.+/) 
-        && open( PROLOG, "$dir/$subdir/stump-prolog.txt" ) ) {
-        while( <PROLOG> ) {
-          chop;
-          if( /^Real-Subject: /i ) {
-            s/</&lt;/g;
-            s/>/&gt;/g;
-            s/^Real-Subject: //g;
-            $subject = substr( $_, 0, 50 );
-          } elsif( /^From: /i ){
-            s/</&lt;/g;
-            s/>/&gt;/g;
-            $from = substr( $_, 0, 50 );
+  while ( ( defined( my $subdir = readdir(QUEUE) ) && $article_count++ < 7 ) ) {
+    my ($file) = $subdir =~ m{^(\w+)$};
+    next if !$file;
+    next if !-d "$dir/$file";
+    if ( open( my $prologFH, "<:encoding(UTF-8)", "$dir/$file/stump-prolog.txt" ) ) {
+      while (<$prologFH>) {
+          chomp;
+        if (/^Real-Subject: (?<subject>.{0,50})/i) {
+          $subject = escape_html( $+{subject} );
+        } elsif (/^(?<from>From: .{0,44})/i) {
+          $from = escape_html( $+{from} );
           } elsif( /^$/ ) {
             last;
           }
@@ -540,35 +582,19 @@ queue.\n";
 
         print "<HR><B>$from: $subject</B>(";
         print "<A HREF=$base_address?action=moderate_article&newsgroup=$newsgroup&" .
-              "moderator=$moderator&password=$password&file=$subdir>Review/Comment/Preapprove</A>)<BR>\n";
+              "moderator=$moderator&password=$password&file=$file>Review/Comment/Preapprove</A>)<BR>\n";
         print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=approve>Approve\n";
 #        print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=preapprove>PreApprove\n";
         foreach (@short_rejection_reasons) {
           print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=\"reject $_\">Reject \u$_\n";
         }
+        close($prologFH);
 
 	print "<BR>\n";
 
-        &print_article_warning( $file );
+        display_article($newsgroup, $file, "multi", 5);
 
-        print "<BR><PRE>\n";
-
-        my $i = 0;
-
-        while( ($_ = <PROLOG>) && $i < 5 ) {
-            chop;
-            s/</&lt;/g;
-            s/>/&gt;/g;
-            if( $_ ne "" ) {
-              print ">>>>>>  " . substr( $_, 0, 75 ) . "\n";
-              $i++;
-            }
-        }
-
-        print "</PRE>";
         $form_not_empty = "yes";
-        close( PROLOG );
-        $article_count += &print_images( $newsgroup, "$dir/$subdir", $subdir );
     }
   }
 

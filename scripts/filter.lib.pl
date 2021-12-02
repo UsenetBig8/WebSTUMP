@@ -19,6 +19,8 @@
 #
 # This library of functions is used for filtering messages.
 #
+use strict;
+use warnings;
 
 
 # processes approval decision.
@@ -34,6 +36,7 @@ sub process_approval_decision {
   my $ShortDirectoryName = pop( @_ );
   my $newsgroup = pop( @_ );
   my $Subject = pop( @_ );
+  our %newsgroups_index;
 
   my $address = $newsgroups_index{$newsgroup};
 
@@ -47,7 +50,7 @@ sub process_approval_decision {
 
 print STDERR "DECISION: $decision for $ShortDirectoryName sent to $address, for $newsgroup\n";
 
-  &rmdir_rf( &article_file_name( $ShortDirectoryName ) );
+  &rmdir_rf( article_file_name( $newsgroup, $ShortDirectoryName ) );
 
 }
 
@@ -94,7 +97,7 @@ sub name_is_in_list { # address, listname
 #
 ######################################################################
 sub get_bad_newsgroups_warning {
-  my ($message) = @_;
+  my ($Article_Head) = @_;
   my ($kind) = $Article_Head =~ m{^X-STUMP-Warning: Newsgroups header (\w+)$}m;
   return $kind || q{};
 }
@@ -106,18 +109,18 @@ sub get_bad_newsgroups_warning {
 # Arguments: Newsgroup, From, Subject, Message, Dir
 #
 # RealSubject is the shorter subject from original posting
-sub review_incoming_message { # Newsgroup, From, Subject, RealSubject, Message, Dir
-  my $dir = pop( @_ );
-  my $message = pop( @_ );
-  my $real_subject = pop( @_ );
-  my $subject = pop( @_ );
-  my $from = pop( @_ );
-  my $newsgroup = pop( @_ );
+sub review_incoming_message {
+  my ($article, $dir) = @_;
+  my $message = $article->{Article_Head} . $article->{Article_Body};
+  my $real_subject = $article->{Article_Subject};
+  my $subject = $article->{Subject};
+  my $from = $article->{Article_From};
+  my $newsgroup = $article->{newsgroup};
 
-  my $warning_file = &article_file_name( $dir ) . "/stump-warning.txt";
+  my $warning_file = &article_file_name($newsgroup, $dir) . "/stump-warning.txt";
 
   # Deal with bad Newsgroups header
-  if( my $bad_header_kind = get_bad_newsgroups_warning($message)) {
+  if( my $bad_header_kind = get_bad_newsgroups_warning($article->{Article_Head})) {
     my ($actions, $default) = get_bad_newsgroups_header_options($newsgroup);
     my $action = $actions->{$bad_header_kind};
     print LOG "Bad Newsgroups: header - $bad_header_kind - $action\n";
@@ -147,10 +150,9 @@ sub review_incoming_message { # Newsgroup, From, Subject, RealSubject, Message, 
     return;
   }
 
-  my $warning_file = &article_file_name( $dir ) . "/stump-warning.txt";
   my $match;
 
-  $ignore_demo_mode = 1;
+  our $ignore_demo_mode = 1;
 
   if( $match = &name_is_in_list( $from, "watch.posters.list" ) ) {
     &append_to_file( $warning_file, "Warning: poster '$from' matches '$match' from the list of suspicious posters\n" );

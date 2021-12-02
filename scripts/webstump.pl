@@ -36,8 +36,6 @@ require "$webstump_home/config/webstump.cfg";
 require "$webstump_home/scripts/webstump.lib.pl";
 require "$webstump_home/scripts/filter.lib.pl";
 require "$webstump_home/scripts/html_output.pl";
-#require "$webstump_home/scripts/gatekeeper.lib";
-require "$webstump_home/scripts/mime-parsing.lib";
 
 $html_mode = "yes";
 
