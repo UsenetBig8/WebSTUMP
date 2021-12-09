@@ -26,6 +26,8 @@
 use strict;
 use warnings;
 use HTML::Escape qw/escape_html/;
+use Webstump::Display qw(exitButtons);
+use Webstump::User qw(userData);
 
 # Declare the global variables
 our $base_address;
@@ -59,6 +61,7 @@ Content-Type: text/html
   }
   span.hline { font: small-caption; }
   span.warning { color: red; }
+  div.exitButtons form { display: inline; }
 </style>
 </head>
 <BODY BGCOLOR="#C5C5FF" BACKGROUND=$base_address_for_files/images/bg1.jpg>
@@ -71,10 +74,12 @@ END
   
 }
 
+
 sub end_html {
+  my ($footer) = @_;
+  $footer //= q{};
   print "\n<HR>Thank you for using <A HREF=$STUMP_URL>STUMP Robomoderator</A>.
-<BR>
-Click <A HREF=$base_address>here</A> to return to WebSTUMP.
+  $footer
 </body>
 </html>
 ";
@@ -149,7 +154,7 @@ Click on 'Request Creation' to ask a sysadmin at a specific domain
 to carry your newsgroup.\n<HR>
 <A HREF=$base_address?action=admin_login>Click here to administer this WebSTUMP installation</A>
 ";
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'welcome'));
 }
 
 # prints the login screen for newsgroup.
@@ -216,7 +221,7 @@ this page. <HR>";
 </UL>
 
 ";
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'login'));
 }
 
 # prints the login screen for newsgroup.
@@ -240,7 +245,7 @@ of this installation. <HR>
  </FORM>
 ";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'login'));
 }
 
 sub display_article {
@@ -387,7 +392,7 @@ and banned threads  and posters.
         "moderator=$moderator&password=$password>Change Password</A>";
 
   closedir( QUEUE );
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'moderate', $newsgroup));
 }
 
 # WebSTUMP administrative screen
@@ -418,7 +423,7 @@ Admin Password For this group:<BR> <INPUT NAME=newsgroup_password VALUE=\"\" SIZ
 
       print "</FORM>\n\n<PRE>\n";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'siteAdmin'));
 }
 
 # WebSTUMP "add newsgroup" function
@@ -471,7 +476,7 @@ ignore::Discard message without notifying sender (spam etc)
 
   print "</PRE>\n";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'siteAdmin'));
 }
 
 #
@@ -612,7 +617,7 @@ queue.\n";
 
   print "</FORM>\n\n";
   closedir( QUEUE );
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'articleList', $newsgroup));
 }
 
 # prints hidden fields -- credentials
@@ -704,7 +709,7 @@ END
 
   print "</UL>\n";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
 sub manage_bad_newsgroups_header {
@@ -759,7 +764,7 @@ END
 </form>
 END
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'admin', $newsgroup));
 }
 
 # edit config list
@@ -799,7 +804,7 @@ $list_content</TEXTAREA>
  </FORM>
 ";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
 # password change page
@@ -820,7 +825,7 @@ sub html_change_password{
  </FORM>
 ";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
 
@@ -851,7 +856,7 @@ they could request creation of their newsgroups by themselves.\n";
  </FORM>
 ";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
 
@@ -899,7 +904,7 @@ Sincerely,
 
   print "$request</PRE>\n";
 
-  &end_html;
+  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
 # displays help

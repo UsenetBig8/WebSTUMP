@@ -20,22 +20,32 @@
 # This is the main webstump cgi script.
 #
 # Figure out the home directory
-#
+# Do this in a BEGIN so that the script directory can be added to @INC
+# so that 'use' works in a convenient way.
+use strict;
+use warnings;
 
-if( !($0 =~ /\/scripts\/webstump\.pl$/) ) {
-  die "This script can only be called with full path name!!!";
+# declare global variables
+# TODO eliminate global variables
+our $html_mode;
+our %request;
+our $webstump_home;
+
+BEGIN {
+  ($webstump_home) = $0 =~ m{^(.*)/scripts/webstump\.pl$};
+  if ( !$webstump_home ) {
+    # In a BEGIN 'die' causes compilation failure so exit instead.
+    print STDERR "This script can only be called with full path name!!!";
+    exit(1);
+  }
+  push @INC, "$webstump_home/scripts";
 }
 
-$webstump_home = $0;
-$webstump_home =~ s/\/scripts\/webstump\.pl$//;
-
-$webstump_home =~ /(^.*$)/;
-$webstump_home = $1;
 
 require "$webstump_home/config/webstump.cfg";
-require "$webstump_home/scripts/webstump.lib.pl";
-require "$webstump_home/scripts/filter.lib.pl";
-require "$webstump_home/scripts/html_output.pl";
+require "webstump.lib.pl";
+require "filter.lib.pl";
+require "html_output.pl";
 
 $html_mode = "yes";
 
@@ -45,7 +55,7 @@ $html_mode = "yes";
 
 %request = &readWebRequest;
 
-$command = "";
+my $command = "";
 
 if( %request ) {
   &disinfect_request;

@@ -651,6 +651,8 @@ sub processWebRequest {
 
   $moderator = "\L$moderator";
 
+# TODO replace selection by user id with selction based on
+# rights assigned to the user.
   if( $action eq "login_screen" ) {
     &html_login_screen;
   } elsif( $action eq "moderation_screen" ) {
@@ -659,6 +661,14 @@ sub processWebRequest {
       &html_newsgroup_management;
     } else {
       &html_moderation_screen;
+    }
+  } elsif( $action eq "management_screen" ) {
+    &authenticate( $newsgroup, $moderator, $password );
+    if( $moderator eq "admin" ) {
+      &html_newsgroup_management;
+    } else {
+      &security_alert( "Moderator $moderator tried to edit list in $newsgroup" );
+      &user_error( "Only administrator (login ADMIN) can perform management actions" );
     }
   } elsif( $action eq "edit_list" ) {
     &authenticate( $newsgroup, $moderator, $password );
