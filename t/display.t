@@ -17,7 +17,7 @@
 # along with WebSTUMP.  If not, see <https://www.gnu.org/licenses/>.
 #
 # Tests for the Webstump::Display module. Run like this:
-# prove -I webstump/scripts webstump/test/display.t
+# prove -I webstump/scripts webstump/t/display.t
 
 use strict;
 use warnings;

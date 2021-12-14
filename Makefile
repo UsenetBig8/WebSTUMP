@@ -19,9 +19,10 @@
 # directory. Runs if activeated by crontab. See your crontab
 # file for more details.
 
-# Edit these variables
+# If you run make from the webstump directory you shouls not need
+# to edit these variables.
 
-WEBSTUMP_HOME = /home/ichudov/public_html/stump/webstump
+WEBSTUMP_HOME = $(CURDIR)
 CC = cc
 
 # do not edit below
@@ -31,7 +32,10 @@ verify:
 	@if [ ! -x $(WEBSTUMP_HOME)/scripts/webstump.pl ] ;  then	\
 		echo $(WEBSTUMP_HOME)/scripts/webstump.pl does not; 	\
 		echo point to a valid perl script.;			\
-		echo Check the value of WEBSTUMP_HOME in Makefile;	\
+		echo Run make from the webstump directory;		\
+		echo \(cd webstump\; make\);				\
+		echo If that does not work, set the value of;		\
+		echo WEBSTUMP_HOME in Makefile;				\
 		exit 1;							\
 	fi	\
 

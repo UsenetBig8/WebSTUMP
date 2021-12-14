@@ -19,6 +19,8 @@
 #
 # this is a collection of library functions for stump.
 
+use warnings;
+
 # error message
 sub error {
   my $msg = pop( @_ );
@@ -649,7 +651,7 @@ sub processWebRequest {
   my $moderator = $request{'moderator'};
   my $password = $request{'password'};
 
-  $moderator = "\L$moderator";
+  $moderator = "\L$moderator" if defined($moderator);
 
 # TODO replace selection by user id with selction based on
 # rights assigned to the user.
@@ -698,12 +700,25 @@ sub processWebRequest {
     &html_newsgroup_management;
   } elsif( $action eq "manage_bad_newsgroups_header" ) {
     &authenticate( $newsgroup, $moderator, $password );
+    if( $moderator ne "admin" ) {
+      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
+      &user_error( "Only administrator (login ADMIN) can add or delete users" );
+    }
     manage_bad_newsgroups_header($newsgroup);
   } elsif( $action eq "manage_bad_newsgroups_header_set" ) {
     &authenticate( $newsgroup, $moderator, $password );
+    if( $moderator ne "admin" ) {
+      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
+      &user_error( "Only administrator (login ADMIN) can add or delete users" );
+    }
     manage_bad_newsgroups_header_set($newsgroup);
     &html_newsgroup_management;
   } elsif( $action eq "manage_bad_newsgroups_header_cancel" ) {
+    &authenticate( $newsgroup, $moderator, $password );
+    if( $moderator ne "admin" ) {
+      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
+      &user_error( "Only administrator (login ADMIN) can add or delete users" );
+    }
     &html_newsgroup_management;
    } elsif( $action eq "delete_user" ) {
     &authenticate( $newsgroup, $moderator, $password );

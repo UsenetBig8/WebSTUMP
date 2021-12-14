@@ -17,7 +17,7 @@
 # along with WebSTUMP.  If not, see <https://www.gnu.org/licenses/>.
 #
 # Tests for the Webstump::User module. Run like this:
-# prove -I webstump/scripts webstump/test/user.t
+# prove -I webstump/scripts webstump/t/user.t
 
 use strict;
 use warnings;
