@@ -42,11 +42,41 @@ tests();
 done_testing();
 
 sub test_processWebRequest {
-  our %moderators;
-  local %moderators = (
-    ADMIN => "ADMINPW",
-    USER1 => "USER1PW"
-  );
+  our $users;
+  local $users = {
+    ADMIN => {
+      id        => 'ADMIN',
+      pw        => "ADMINPW",
+      fullAdmin => 1,
+      listAdmin => 1,
+      userAdmin => 1,
+      moderate  => 0
+    },
+    USER1 => {
+      id        => 'USER1',
+      pw        => "USER1PW",
+      fullAdmin => 0,
+      listAdmin => 0,
+      userAdmin => 0,
+      moderate  => 1
+    },
+    USER2 => {
+      id        => 'USER2',
+      pw        => "USER2PW",
+      fullAdmin => 0,
+      listAdmin => 1,
+      userAdmin => 0,
+      moderate  => 0
+    },
+    USER3 => {
+      id        => 'USER3',
+      pw        => "USER3PW",
+      fullAdmin => 0,
+      listAdmin => 0,
+      userAdmin => 1,
+      moderate  => 0
+    }
+  };
   my %requestForUser = (
     loggedout => { rights => 'loggedout', req => { newsgroup => 'm.t.m' } },
     admin     => {
@@ -61,66 +91,121 @@ sub test_processWebRequest {
       rights => 'loggedout',
       req    => { newsgroup => 'm.t.m', moderator => 'USER1', password => "BADPW" }
     },
+    listAdmin => {
+      rights => 'listAdmin',
+      req    => { newsgroup => 'm.t.m', moderator => 'USER2', password => "USER2PW" }
+    },
+    userAdmin => {
+      rights => 'userAdmin',
+      req    => { newsgroup => 'm.t.m', moderator => 'USER3', password => "USER3PW" }
+    }
   );
+
+  # Expected call for all authenticated actions
+  my %auth = ( readUsersFromFile => 1 );
+
+  # return to management page
+  my %manage = ( html_newsgroup_management => 1 );
 
   # result to expect if there are no expected calls for the action
   my %nocalls = (
     loggedout => {
+      wslog => [ { re => qr{SECURITY_ALERT:}, case => 'security alert in LOG' } ],
       'exit' => [ { re => qr{^0$}s, case => 'exit(0)' } ],
-      calls  => { user_error => 1 }
+      calls  => { %auth, user_error => 1 }
     },
     admin => {
-      'exit' => [ { re => qr{^0$}s, case => 'exit(0)' } ],
-      calls  => { read_moderators => 1, user_error => 1 }
+      wslog  => [ { re => qr{SECURITY_ALERT:}, case => 'security alert in LOG' } ],
+      'exit' => [ { re => qr{^0$}s,            case => 'exit(0)' } ],
+      calls => { %auth, user_error => 1 }
     },
     gooduser => {
       wslog  => [ { re => qr{SECURITY_ALERT:}, case => 'security alert in LOG' } ],
       'exit' => [ { re => qr{^0$}s,            case => 'exit(0)' } ],
-      calls => { read_moderators => 1, user_error => 1 }
+      calls => { %auth, user_error => 1 }
     },
     baduser => {
       wslog =>
         [ { re => qr{SECURITY_ALERT: Authentication denied}, case => 'security alert in LOG' } ],
       'exit' => [ { re => qr{^0$}s, case => 'exit(0)' } ],
-      calls  => { read_moderators => 1, user_error => 1 }
+      calls  => { %auth, user_error => 1 }
+    },
+    listAdmin => {
+      wslog  => [ { re => qr{SECURITY_ALERT:}, case => 'security alert in LOG' } ],
+      'exit' => [ { re => qr{^0$}s,            case => 'exit(0)' } ],
+      calls => { %auth, user_error => 1 }
+    },
+    userAdmin => {
+      wslog  => [ { re => qr{SECURITY_ALERT:}, case => 'security alert in LOG' } ],
+      'exit' => [ { re => qr{^0$}s,            case => 'exit(0)' } ],
+      calls => { %auth, user_error => 1 }
     },
   );
 
   # Map of actions to functions expected to be called for kind of user
   my %actions = (
     moderation_screen => {
-      fullAdmin => { read_moderators => 1, html_newsgroup_management => 1 },
-      moderator => { read_moderators => 1, html_moderation_screen    => 1 }
+      fullAdmin => { %auth, %manage },
+      listAdmin => { %auth, %manage },
+      userAdmin => { %auth, %manage },
+      moderator => { %auth, html_moderation_screen => 1 }
     },
-    approval_decision => { moderator => { read_moderators => 1, approval_decision         => 1 } },
-    moderate_article  => { moderator => { read_moderators => 1, html_moderate_article     => 1 } },
-    management_screen => { fullAdmin => { read_moderators => 1, html_newsgroup_management => 1 } },
-    edit_list         => { fullAdmin => { read_moderators => 1, edit_configuration_list   => 1 } },
-    add_user =>
-      { fullAdmin => { read_moderators => 1, add_user => 1, html_newsgroup_management => 1 } },
+    approval_decision => { moderator => { %auth, approval_decision     => 1 } },
+    moderate_article  => { moderator => { %auth, html_moderate_article => 1 } },
+    management_screen => {
+      fullAdmin => { %auth, %manage },
+      listAdmin => { %auth, %manage },
+      userAdmin => { %auth, %manage }
+    },
+    updateUsers => {
+      fullAdmin => { %auth, updateUsers => 1, %manage },
+      userAdmin => { %auth, updateUsers => 1, %manage }
+    },
+    edit_list => {
+      fullAdmin => { %auth, edit_configuration_list => 1 },
+      listAdmin => { %auth, edit_configuration_list => 1 }
+    },
+    add_user => {
+      fullAdmin => { %auth, add_user => 1, %manage },
+      userAdmin => { %auth, add_user => 1, %manage }
+    },
     set_config_list => {
-      fullAdmin => { read_moderators => 1, set_config_list => 1, html_newsgroup_management => 1 }
+      fullAdmin => { %auth, set_config_list => 1, %manage },
+      listAdmin => { %auth, set_config_list => 1, %manage },
     },
-    manage_bad_newsgroups_header =>
-      { fullAdmin => { read_moderators => 1, manage_bad_newsgroups_header => 1 } },
+    manage_bad_newsgroups_header => {
+      fullAdmin => { %auth, manage_bad_newsgroups_header => 1 },
+      listAdmin => { %auth, manage_bad_newsgroups_header => 1 }
+    },
     manage_bad_newsgroups_header_set => {
       fullAdmin => {
-        read_moderators                  => 1,
+        %auth,
+        manage_bad_newsgroups_header_set => 1,
+        html_newsgroup_management        => 1
+      },
+      listAdmin => {
+        %auth,
         manage_bad_newsgroups_header_set => 1,
         html_newsgroup_management        => 1
       }
     },
     manage_bad_newsgroups_header_cancel =>
-      { fullAdmin => { read_moderators => 1, html_newsgroup_management => 1 } },
-    delete_user =>
-      { fullAdmin => { read_moderators => 1, delete_user => 1, html_newsgroup_management => 1 } },
+      { fullAdmin => { %auth, %manage }, listAdmin => { %auth, %manage } },
+    delete_user => {
+      fullAdmin => { %auth, delete_user => 1, %manage },
+      userAdmin => { %auth, delete_user => 1, %manage }
+    },
     change_password => {
-      fullAdmin => { read_moderators => 1, html_change_password => 1 },
-      moderator => { read_moderators => 1, html_change_password => 1 }
+      fullAdmin => { %auth, html_change_password => 1 },
+      listAdmin => { %auth, html_change_password => 1 },
+      userAdmin => { %auth, html_change_password => 1 },
+      moderator => { %auth, html_change_password => 1 }
     },
     validate_change_password => {
-      fullAdmin => { read_moderators => 1, validate_change_password => 1 },
-      moderator => { read_moderators => 1, validate_change_password => 1 }
+      fullAdmin => { %auth, validate_change_password => 1 },
+      listAdmin => { %auth, validate_change_password => 1 },
+      userAdmin => { %auth, validate_change_password => 1 },
+      moderator => { %auth, validate_change_password => 1 }
     },
     login_screen                        => { all => { html_login_screen                   => 1 } },
     init_request_newsgroup_creation     => { all => { init_request_newsgroup_creation     => 1 } },
@@ -149,6 +234,10 @@ sub test_processWebRequest {
       ( $calls ? ( calls => $calls ) : %$nocalls )
     };
   };
+
+  # Note that if the module under test imports a function you have to mock it in the
+  # package of the module under test rather than it's 'home' package - 'main' in this case
+  # for updateUsers. No harm in mocking in both places.
   my @mocklist = (
     qw(
       read_moderators
@@ -158,7 +247,7 @@ sub test_processWebRequest {
       html_moderate_article html_change_password validate_change_password
       init_request_newsgroup_creation complete_newsgroup_creation_request
       webstump_admin_screen admin_login_screen admin_add_newsgroup
-      display_help
+      display_help updateUsers
       )
   );
   foreach my $action ( sort( keys(%actions) ) ) {
@@ -173,12 +262,17 @@ sub test_processWebRequest {
           ( $f => sub { $calls->{$f}++ } )
         } @mocklist
       );
+      my $mock2 = Test::MockModule->new( 'Webstump::User', no_auto => 1 )->mock(
+        readUsersFromFile => sub { $calls->{readUsersFromFile}++; return $users; },
+        updateUsers       => sub { $calls->{updateUsers}++; }
+      );
       my $r = test_processWebRequest_run( $case->{req} );
       foreach my $output (qw(stdout stderr exit die)) {
         check( $r->{trap}, $case, $output );
       }
       check( $r, $case, 'wslog' );
-      is_deeply( $calls, $case->{calls}, qq{$case->{name} makes expected calls} );
+      is_deeply( $calls, $case->{calls}, qq{$case->{name} makes expected calls} )
+        or diag( explain($calls) );
     }
   }
 }

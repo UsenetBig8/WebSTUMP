@@ -21,13 +21,19 @@
 
 use warnings;
 
+use Webstump::User qw( updateUsers isListAdmin isUserAdmin isAdmin isModerator );
+
+# Declare gloal variables.
+# TODO eliminate these as far as possile
+our $users;
+our $ignore_demo_mode;
+
 # error message
 sub error {
   my $msg = pop( @_ );
 
   if( defined $html_mode ) {
-    print 
-"Content-Type: text/html\n\n
+    print "Content-Type: text/html\n\n
 <TITLE>WebSTUMP Error</TITLE>
 <BODY BGCOLOR=\"#C5C5FF\" BACKGROUND=$base_address_for_files/images/bg1.jpg>
 <H1>You have encountered an error in WebSTUMP.</H1>";
@@ -53,8 +59,7 @@ Query Parameters:<P>\n
 sub user_error {
   my $msg = pop( @_ );
   if( defined $html_mode ) {
-    print 
-"Content-Type: text/html\n\n
+    print "Content-Type: text/html\n\n
 <TITLE>You have made a mistake.</TITLE>
 <BODY BGCOLOR=\"#C5C5FF\" BACKGROUND=$base_address_for_files/images/bg1.jpg>
 <H1>You have made a mistake.</H1>
@@ -75,15 +80,20 @@ HREF=mailto:$supporter>$supporter</A>.
   die $msg;
 }
 
-# returns full config file name
-sub full_config_file_name {
-  my $short_name = pop( @_ );
+sub full_config_dir_name {
   my $newsgroup = &required_parameter( "newsgroup" );
   $newsgroup =~ s/\///g;
   $newsgroup =~ s/`//g;
   $newsgroup =~ s/;//g;
   $newsgroup = &untaint( $newsgroup );
-  return  "$webstump_home/config/newsgroups/$newsgroup/$short_name";
+  return "$webstump_home/config/newsgroups/$newsgroup";
+}
+
+# returns full config file name
+sub full_config_file_name {
+  my $short_name = pop(@_);
+  my $dir        = full_config_dir_name();
+  return "$dir/$short_name";
 }
 
 # checks if the admin password supplied is correct
@@ -182,7 +192,11 @@ sub get_bad_newsgroups_header_options {
   my $default = [
     { kind => 'missing', value => 'warn', text => 'when Newsgroups header is missing'},
     { kind => 'empty', value => 'warn', text => 'when Newsgroups header is empty'},
-    { kind => 'nogroup', value => 'warn', text => 'when Newsgroups header does not name the group'}
+    {
+      kind  => 'nogroup',
+      value => 'warn',
+      text  => 'when Newsgroups header does not name the group'
+    }
   ];
   
   if ($bad_newsgroups_header_options->{$newsgroup}) {
@@ -332,53 +346,20 @@ sub security_alert {
   print LOG "SECURITY_ALERT: $msg\n";
 }
 
-# reads the moderators info
-sub read_moderators {
-  my $newsgroup = &required_parameter( "newsgroup" );
-
-  my $file = &full_config_file_name( "moderators" );
-
-  open( MODERATORS, "$file" )
-        || error( "Could not open file with moderator passwords: $file" );
- 
-  while( <MODERATORS> ) {
-    my ($name, $pwd) = split;
-    $moderators{"\U$name"} = "\U$pwd";
-  }
- 
-  close( MODERATORS );
-}
-
-# saves the moderators info
-sub save_moderators {
-  my $newsgroup = &required_parameter( "newsgroup" );
-
-  my $file = &full_config_file_name( "moderators" );
-
-  $file = &untaint( $file );
-
-  open_file_for_writing( MODERATORS, $file );
-#        || &error( "Could not open file with moderator passwords: $file" );
-
-  foreach (keys %moderators) {
-      print MODERATORS "$_ $moderators{$_}\n";
-  }
- 
-  close( MODERATORS );
-}
-
 # authenticates user
 sub authenticate {
-  my $password = &required_parameter( "password" );
-  my $moderator = &required_parameter( "moderator" );
-  my $newsgroup = &required_parameter( "newsgroup" );
+  my ( $newsgroup, $moderator, $password ) = @_;
   
-  &read_moderators;
+  $users = Webstump::User::readUsersFromFile();
+  my $id = uc($moderator // q{});
+  my $pw = uc($password // q{});
 
-  if( !defined $moderators{"\U$moderator"} || 
-      $moderators{"\U$moderator"} ne "\U$password" ) {
-    &security_alert( "Authentication denied." )
-    &user_error( "Authentication denied." );
+  if ( !defined $users->{$id}
+    || $users->{$id}->{pw} ne $pw )
+  {
+    &security_alert("Authentication denied.") & user_error("Authentication denied.");
+  } else {
+    return $users->{$id};
   }
 }
 
@@ -406,6 +387,7 @@ sub disinfect_request {
 }
 
 # adds a user
+# TODO replace this function with user management
 sub add_user {
   my $user = &required_parameter( "user" );
   my $new_password = &required_parameter( "new_password" );
@@ -414,12 +396,18 @@ sub add_user {
     if( ! ($user =~ /^[a-zA-Z0-9]+$/ ) );
   &user_error( "Password may only contain letters and digits" )
     if( ! ($new_password =~ /^[a-zA-Z0-9]+$/ ) );
-  &user_error( "Cannot change password for user admin" )
-    if( "\U$user" eq "ADMIN" );
+  my $id = "\U$user";
+  my $pw = "\U$new_password";
+  if ( exists( $users->{$id} ) ) {
+    user_error("user $id already exists");
+  } else {
+    # Note that the existing user check above prevents adding 'admin'
+    # so in this legacy context we are adding a moderator
+    Webstump::User::addUser( $users, $id, $pw, \%request );
+  }
 
-  $moderators{"\U$user"} = "\U$new_password";
-
-  &save_moderators;
+  return if is_demo_mode();
+  Webstump::User::saveUsersToFile($users);
 }
 
 # checks that a config list is in enumerated set of values. Returns 
@@ -466,31 +454,39 @@ sub set_config_list {
 # deletes a user
 sub delete_user {
   my $user = &required_parameter( "user" );
-
-  &user_error( "User \U$user" . " does not exist!" ) 
-    if( ! defined $moderators{"\U$user"} );
+  my $id   = "\U$user";
+  &user_error("User $id does not exist!")
+    if ( !defined $users->{$id} );
   &user_error( "Cannot delete user admin" )
-    if( "\U$user" eq "ADMIN" );
-
-  delete $moderators{"\U$user"};
-
-  &save_moderators;
+    if ( $id eq "ADMIN" );
+  Webstump::User::deleteUser( $users, $id );
+  Webstump::User::saveUsersToFile($users);
 }
 
 # validate password change
 sub validate_change_password {
-  my $user = &required_parameter( "moderator" );
-  my $new_password = &required_parameter( "new_password" );
-
+  my ($newsgroup, $user) = @_;
+  my $pwuser       = required_parameter("update");
+  my $new_password = required_parameter("${pwuser}-pw");
+  if ($user->{id} eq $pwuser || isUserAdmin($user)) {
   &user_error( "Password may only contain letters and digits" )
     if( ! ($new_password =~ /^[a-zA-Z0-9]+$/ ) );
   &user_error( "Cannot change password for user admin" )
-    if( "\U$user" eq "ADMIN" );
+    if ( "\U$pwuser" eq "ADMIN" );
 
-  $moderators{"\U$user"} = "\U$new_password";
+  Webstump::User::changePassword( $users, "\U$pwuser", "\U$new_password" );
+  Webstump::User::saveUsersToFile($users);
 
-  &save_moderators;
-  &html_welcome_page;
+  } else {
+      &security_alert("User $user->{id} tried to change password for $pwuser");
+      &user_error("Only users with admin rights can change other users passwords");
+  }
+  # Go to welcome page when changing your own password
+  if ($user->{id} eq $pwuser) {
+    html_welcome_page();
+  } else {
+    html_newsgroup_management($newsgroup, $user);
+  }
 }
 
 # reads rejection reasons
@@ -637,7 +633,8 @@ sub get_article_count {
    opendir( DIR, $dir );
    my $file;
    while( $file = readdir( DIR ) ) {
-     $count++ if( -d "$dir/$file" && $file ne "." && $file ne ".." && -r "$dir/$file/full_message.txt" );
+    $count++
+      if ( -d "$dir/$file" && $file ne "." && $file ne ".." && -r "$dir/$file/full_message.txt" );
    }
 
    return $count;
@@ -653,99 +650,122 @@ sub processWebRequest {
 
   $moderator = "\L$moderator" if defined($moderator);
 
-# TODO replace selection by user id with selction based on
-# rights assigned to the user.
   if( $action eq "login_screen" ) {
     &html_login_screen;
   } elsif( $action eq "moderation_screen" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator eq "admin" ) {
-      &html_newsgroup_management;
-    } else {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( $user->{moderate} ) {
       &html_moderation_screen;
-    }
-  } elsif( $action eq "management_screen" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator eq "admin" ) {
-      &html_newsgroup_management;
     } else {
-      &security_alert( "Moderator $moderator tried to edit list in $newsgroup" );
-      &user_error( "Only administrator (login ADMIN) can perform management actions" );
+      html_newsgroup_management( $newsgroup, $user );
+    }
+  } elsif ( $action eq "management_screen" ) {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isAdmin($user) ) {
+      html_newsgroup_management( $newsgroup, $user );
+    } else {
+      &security_alert( "Moderator $moderator tried to manage $newsgroup" );
+      &user_error("Only users with admin rights can manage newsgroup");
+    }
+  } elsif ( $action eq "updateUsers" ) {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isUserAdmin($user) ) {
+      if ( my $pwChange = $request{newPassword} ) {
+        if ($users->{$pwChange}) {
+          html_change_password( $newsgroup, $user, untaint($pwChange) );
+        } else {
+          html_newsgroup_management( $newsgroup, $user );
+        }
+      } else {
+        updateUsers( \%request, $newsgroup, $users );
+        html_newsgroup_management( $newsgroup, $user );
+      }
+    } else {
+      &security_alert( "User $moderator tried to update users in $newsgroup" );
+      &user_error("This action requires user admin rights");
     }
   } elsif( $action eq "edit_list" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator eq "admin" ) {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isListAdmin($user) ) {
       &edit_configuration_list;
     } else {
       &security_alert( "Moderator $moderator tried to edit list in $newsgroup" );
-      &user_error( "Only administrator (login ADMIN) can edit these lists" );
+      &user_error("Only users with admin rights can edit lists");
     }
   } elsif( $action eq "add_user" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator ne "admin" ) {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isUserAdmin($user) ) {
+      &add_user;
+      html_newsgroup_management( $newsgroup, $user );
+    } else {
       &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
-      &user_error( "Only administrator (login ADMIN) can add or delete users" );
+      &user_error("Only users with admin rights can add or delete users");
     }
-
-    &add_user;
-    &html_newsgroup_management;
   } elsif( $action eq "set_config_list" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator ne "admin" ) {
-      &security_alert( "Moderator $moderator tried to set config list in $newsgroup" );
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isListAdmin($user) ) {
+      &set_config_list;
+      html_newsgroup_management( $newsgroup, $user );
+    } else {
+      &security_alert("Moderator $moderator tried to add user in $newsgroup");
       &user_error( "Only administrator (login ADMIN) can add or delete users" );
     }
-
-    &set_config_list;
-    &html_newsgroup_management;
   } elsif( $action eq "manage_bad_newsgroups_header" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator ne "admin" ) {
-      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
-      &user_error( "Only administrator (login ADMIN) can add or delete users" );
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isListAdmin($user) ) {
+      manage_bad_newsgroups_header($newsgroup);
+    } else {
+      &security_alert( "Moderator $moderator tried to manage bad newsgroups headers in $newsgroup" );
+      &user_error("Only users with admin rights can manage bad newsgroups header actions");
     }
-    manage_bad_newsgroups_header($newsgroup);
   } elsif( $action eq "manage_bad_newsgroups_header_set" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator ne "admin" ) {
-      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
-      &user_error( "Only administrator (login ADMIN) can add or delete users" );
-    }
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isListAdmin($user) ) {
     manage_bad_newsgroups_header_set($newsgroup);
-    &html_newsgroup_management;
+      html_newsgroup_management( $newsgroup, $user );
+    } else {
+      &security_alert( "Moderator $moderator tried to manage bad newsgroups headers in $newsgroup" );
+      &user_error("Only users with admin rights can manage bad newsgroups header actions");
+    }
   } elsif( $action eq "manage_bad_newsgroups_header_cancel" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator ne "admin" ) {
-      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
-      &user_error( "Only administrator (login ADMIN) can add or delete users" );
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isListAdmin($user) ) {
+      html_newsgroup_management( $newsgroup, $user );
+    } else {
+      &security_alert( "Moderator $moderator tried to manage bad newsgroups headers in $newsgroup" );
+      &user_error("Only users with admin rights can manage bad newsgroups header actions");
     }
-    &html_newsgroup_management;
    } elsif( $action eq "delete_user" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator ne "admin" ) {
-      &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isUserAdmin($user) ) {
+      &delete_user;
+      html_newsgroup_management( $newsgroup, $user );
+    } else {
+      &security_alert("Moderator $moderator tried to delete user in $newsgroup");
       &user_error( "Only administrator (login ADMIN) can add or delete users" );
     }
-    &delete_user;
-    &html_newsgroup_management;
   } elsif( $action eq "approval_decision" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator eq "admin" ) {
-      &user_error( "Login ADMIN exists for user management only" );
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isModerator($user) ) {
+      &approval_decision;
+    } else {
+      &security_alert("user $moderator tried $action in $newsgroup");
+      &user_error( "Moderator rights are required for this action" );
     }
-    &approval_decision;
   } elsif( $action eq "moderate_article" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    if( $moderator eq "admin" ) {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isModerator($user) ) {
+      &html_moderate_article();
+    } else {
+      &security_alert("user $moderator tried $action in $newsgroup");
       &user_error( "Login ADMIN exists for user management only" );
     }
-    &html_moderate_article();
   } elsif( $action eq "change_password" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    &html_change_password;
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    html_change_password( $newsgroup, $user, $user->{id} );
   } elsif( $action eq "validate_change_password" ) {
-    &authenticate( $newsgroup, $moderator, $password );
-    &validate_change_password;
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    validate_change_password($newsgroup, $user);
   } elsif( $action eq "init_request_newsgroup_creation" ) {
     &init_request_newsgroup_creation;
   } elsif( $action eq "complete_newsgroup_creation_request" ) {

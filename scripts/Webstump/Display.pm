@@ -25,10 +25,10 @@ use warnings;
 use Exporter 5.57 'import';
 
 our $VERSION   = '1.00';
-our @EXPORT_OK = qw(
-  exitButtons
-);
+our @EXPORT_OK = qw(exitButtons credentials);
+
 use HTML::Escape qw/escape_html/;
+use Webstump::User qw(getRights isAdmin isModerator);
 
 # Return the HTML for the appropriate set of exit buttons
 my %contextLabels = (
@@ -47,10 +47,10 @@ sub exitButtons {
   my $labels = $contextLabels{$context} || $contextLabels{unknown};
 
   $html .= button( $ref, $labels->{out} );
-  if ( $user->{moderate} ) {
+  if ( isModerator($user) ) {
     $html .= actionButton( $ref, $labels->{moderate}, 'moderation_screen', $user, $newsgroup );
   }
-  if ( $user->{fullAdmin} ) {
+  if ( isAdmin($user) ) {
     $html .= actionButton( $ref, $labels->{manage}, 'management_screen', $user, $newsgroup );
   }
   $html .= qq{</div>};
@@ -72,12 +72,12 @@ END
 sub actionButton {
   my ( $ref, $text, $action, $user, $newsgroup ) = @_;
   return q{} if !$text;
-  my $href     = escape_html($ref);
-  my $htext    = escape_html($text);
+  my $href       = escape_html($ref);
+  my $htext      = escape_html($text);
   my $hnewsgroup = escape_html($newsgroup);
-  my $haction = escape_html($action);
-  my $username = escape_html( $user->{id} );
-  my $password = escape_html( $user->{pw} );
+  my $haction    = escape_html($action);
+  my $username   = escape_html( $user->{id} );
+  my $password   = escape_html( $user->{pw} );
   return <<"END";
 <form action="$href" method="post">
   <input name="newsgroup" value="$hnewsgroup" type="hidden">
@@ -87,6 +87,16 @@ sub actionButton {
   <button type="submit">$htext</button>
 </form>
 END
+}
+
+sub credentials {
+  my ( $newsgroup, $user ) = @_;
+  my $ng = escape_html($newsgroup);
+  my $id = escape_html( $user->{id} );
+  my $pw = escape_html( $user->{pw} );
+  print qq{<input name="newsgroup" value="$ng" type="hidden">\n};
+  print qq{<input name="moderator" value="$id" type="hidden">\n};
+  print qq{<input name="password" value="$pw" type="hidden">\n};
 }
 
 1;

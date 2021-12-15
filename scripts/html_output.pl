@@ -27,12 +27,14 @@ use strict;
 use warnings;
 use HTML::Escape qw/escape_html/;
 use Webstump::Display qw(exitButtons);
-use Webstump::User qw(userData);
+use Webstump::User qw(userData isListAdmin);
+use Webstump::UserDisplay qw(changePasswordForm userManagementForm );
+
 
 # Declare the global variables
 our $base_address;
 our $base_address_for_files;
-our %moderators;
+our $users;
 our @newsgroups_array;
 our %newsgroups_index;
 our $queues_dir;
@@ -634,34 +636,19 @@ sub html_print_credentials {
 
 # newsgroup admin page
 sub html_newsgroup_management {
-  &begin_html( "Administer $request{'newsgroup'}" );
+  my ($newsgroup, $user) = @_;
+  &begin_html( "Administer $newsgroup" );
 
-  print "All usernames and passwords are not case sensitive.\n";
-  print "<HR>Use this form to add new moderators or change passwords:<BR>
- <FORM METHOD=$request_method action=$base_address>
- <INPUT NAME=action VALUE=add_user TYPE=hidden>";
-  &html_print_credentials;
+  userManagementForm($base_address, $newsgroup, $user, $users);
+  if (isListAdmin($user)) {
+    html_newsgroup_list_forms($newsgroup, $user);
+  }
+  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
+}
+
+sub html_newsgroup_list_forms {
+  my ($newsgroup, $user) = @_;
   print "
- Username: <INPUT NAME=user VALUE=\"\" SIZE=20>
- <BR>
- Password: <INPUT NAME=new_password VALUE=\"\" SIZE=20>
- <BR>
- <INPUT TYPE=submit VALUE=\"Add/Change\">
- <INPUT TYPE=reset VALUE=Reset>
- </FORM>
-";
-
-  print "<HR>Use this form to delete moderators:<BR>
- <FORM METHOD=$request_method action=$base_address>
- <INPUT NAME=action VALUE=delete_user TYPE=hidden>";
-  &html_print_credentials;
-  print "
- Username: <INPUT NAME=user VALUE=\"\" SIZE=20>
- <BR>
- <INPUT TYPE=submit VALUE=\"Delete Moderator\">
- <INPUT TYPE=reset VALUE=Reset>
- </FORM><HR>
-
  <FORM METHOD=$request_method action=$base_address>
  <INPUT NAME=action VALUE=edit_list TYPE=hidden>";
   &html_print_credentials;
@@ -696,20 +683,7 @@ END
   <INPUT TYPE=submit VALUE="Manage bad Newsgroups header action">
 </FORM>
 END
-  print "
-  <HR>
 
-  List of current moderators:<P>
-
-  <UL>\n";
-
-  foreach (keys %moderators) {
-      print "<LI> $_\n";
-  }
-
-  print "</UL>\n";
-
-  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
 sub manage_bad_newsgroups_header {
@@ -808,23 +782,10 @@ $list_content</TEXTAREA>
 }
 
 # password change page
-sub html_change_password{
+sub html_change_password {
+  my ($newsgroup, $user, $pwChange) = @_;
   &begin_html( "Change Password" );
-
-  print "All usernames and passwords are not case sensitive.\n";
-  print "<HR>Use this form to change your password:<BR>
- <FORM METHOD=$request_method action=$base_address>
- <INPUT NAME=action VALUE=validate_change_password TYPE=hidden>";
-  &html_print_credentials;
-  print "
- <BR>
- New Password: <INPUT NAME=new_password VALUE=\"\" SIZE=20>
- <BR>
- <INPUT TYPE=submit VALUE=Submit>
- <INPUT TYPE=reset VALUE=Reset>
- </FORM>
-";
-
+  changePasswordForm($base_address, $newsgroup, $user, $users, $pwChange );
   end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
 }
 
