@@ -3,17 +3,17 @@
 # Copyright 1999 Igor Chudov
 #
 # This file is part of WebSTUMP.
-# 
+#
 # WebSTUMP is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # WebSTUMP is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with WebSTUMP.  If not, see <https://www.gnu.org/licenses/>.
 #
@@ -29,7 +29,7 @@ use HTML::Escape qw/escape_html/;
 use Webstump::Display qw(exitButtons);
 use Webstump::User qw(userData isListAdmin);
 use Webstump::UserDisplay qw(changePasswordForm userManagementForm );
-
+use Webstump::ModDisplay qw(displayArticle);
 
 # Declare the global variables
 our $base_address;
@@ -47,7 +47,7 @@ our $webstump_config;
 our $webstump_home;
 
 sub begin_html {
-  my $title = pop( @_ );
+  my $title = pop(@_);
   print <<"END";
 Content-Type: text/html
 
@@ -64,18 +64,24 @@ Content-Type: text/html
   span.hline { font: small-caption; }
   span.warning { color: red; }
   div.exitButtons form { display: inline; }
+  div.multi {
+    margin: 1em;
+    border: black solid 1px;
+    padding: 0.5em;
+  }
+  div.pre { white-space: pre; font-family: monospace; }
 </style>
 </head>
 <BODY BGCOLOR="#C5C5FF" BACKGROUND=$base_address_for_files/images/bg1.jpg>
 <H1>$title</H1>
 
 END
-  if( &is_demo_mode ) {
-    print "<B> You are operating in demonstration mode. User actions will have no effect.</B><HR>\n";
+  if (&is_demo_mode) {
+    print
+      "<B> You are operating in demonstration mode. User actions will have no effect.</B><HR>\n";
   }
-  
-}
 
+}
 
 sub end_html {
   my ($footer) = @_;
@@ -91,31 +97,32 @@ sub end_html {
 # accepts topic id and topic name.
 #
 sub link_to_help {
-  my $topic_name = pop( @_ );
-  my $topic = pop( @_ );
+  my $topic_name = pop(@_);
+  my $topic      = pop(@_);
 
   #&print_image( "help.gif", "" );
 
-  print "<A HREF=$base_address?action=help&topic=$topic TARGET=new>Click here for help on $topic_name</A>\n";
+  print
+"<A HREF=$base_address?action=help&topic=$topic TARGET=new>Click here for help on $topic_name</A>\n";
 }
 
 #
 # prints image and an alt text
 #
-sub print_image { # image_file, alt_text
-  my $alt = pop( @_ );
-  my $file = pop( @_ );
+sub print_image {    # image_file, alt_text
+  my $alt  = pop(@_);
+  my $file = pop(@_);
 
   print "<IMG SRC=$base_address_for_files/images/$file ALT=\"$alt\" ALIGN=BOTTOMP>\n";
 }
 
 # prints the welcome page and login screen.
 sub html_welcome_page {
-  &begin_html( "Welcome to WebSTUMP" );
+  &begin_html("Welcome to WebSTUMP");
 
-  print 
+  print
 
-"Welcome to WebSTUMP, the moderators' front end for <A
+    "Welcome to WebSTUMP, the moderators' front end for <A
 HREF=http://www.algebra.com/~ichudov/stump>STUMP</A> users -- USENET newsgroup
 moderators. Only authorized users are allowed to log into this
 program.
@@ -124,11 +131,11 @@ program.
 
   my $motd_file = "$webstump_home/config/motd";
 
-  if( -f $motd_file && -r $motd_file ){
+  if ( -f $motd_file && -r $motd_file ) {
     open( MOTD, $motd_file );
     print "<B>Message of the Day:</B><BR><PRE>\n";
-    print while( <MOTD> );
-    close( MOTD );
+    print while (<MOTD>);
+    close(MOTD);
     print "</PRE><HR>\n";
   }
 
@@ -136,18 +143,18 @@ program.
 Newsgroups Status:<BR>
 <TABLE BORDER=3>\n";
 
-  for( sort @newsgroups_array ) {
+  for ( sort @newsgroups_array ) {
     print "<TR><TD>";
-    
-    my $count = &get_article_count( $_ );
+
+    my $count = &get_article_count($_);
 
     print " <A HREF=$base_address?action=login_screen\&newsgroup=$_>$_</A>";
     &print_image( "smiley.gif", "" ) if $count;
     print "</TD>";
 
-
     print "<TD>$count messages in queue<BR></TD>";
-    print "<TD><A HREF=$base_address?action=init_request_newsgroup_creation\&newsgroup=$_>Request creation</A></TD>\n";
+    print
+"<TD><A HREF=$base_address?action=init_request_newsgroup_creation\&newsgroup=$_>Request creation</A></TD>\n";
   }
 
   print "</TABLE>\n";
@@ -156,39 +163,36 @@ Click on 'Request Creation' to ask a sysadmin at a specific domain
 to carry your newsgroup.\n<HR>
 <A HREF=$base_address?action=admin_login>Click here to administer this WebSTUMP installation</A>
 ";
-  end_html(exitButtons($base_address, userData(), 'welcome'));
+  end_html( exitButtons( $base_address, userData(), 'welcome' ) );
 }
 
 # prints the login screen for newsgroup.
 sub html_login_screen {
-  my $newsgroup = $request{'newsgroup'} || &error( "newsgroup not defined" );
+  my $newsgroup = $request{'newsgroup'} || &error("newsgroup not defined");
 
-  my $count = &get_article_count( $newsgroup );
+  my $count = &get_article_count($newsgroup);
 
-
-  if( $count ) {
-    &begin_html( "$count articles in queue for $newsgroup" );
+  if ($count) {
+    &begin_html("$count articles in queue for $newsgroup");
   } else {
-    &begin_html( "Empty Queue for $newsgroup" );
+    &begin_html("Empty Queue for $newsgroup");
   }
 
-  print
-" Welcome to the Moderation  Center for  $newsgroup. Please bookmark
+  print " Welcome to the Moderation  Center for  $newsgroup. Please bookmark
 this page. <HR>";
 
   my $color     = "";
   my $end_color = "";
 
-  if( $count ) {
-    $color = "<font color=red>";
+  if ($count) {
+    $color     = "<font color=red>";
     $end_color = "<font color=black>";
   }
 
-  print 
-"<FORM METHOD=$request_method action=$base_address>
+  print "<FORM METHOD=$request_method action=$base_address>
  <INPUT NAME=action VALUE=moderation_screen TYPE=hidden>
   $color ($count ";
-  
+
   &print_image( "new_tiny2.gif", "new" ) if $count;
 
   print " articles available)<BR> $end_color
@@ -223,22 +227,20 @@ this page. <HR>";
 </UL>
 
 ";
-  end_html(exitButtons($base_address, userData(), 'login'));
+  end_html( exitButtons( $base_address, userData(), 'login' ) );
 }
 
 # prints the login screen for newsgroup.
 sub admin_login_screen {
-  &begin_html( "Administrative login" );
+  &begin_html("Administrative login");
 
-  print
-"
+  print "
 Attention: this page is only for the maintainer of the whole WebSTUMP
 installation. Please return to the main page if you are not the maintainer
 of this installation. <HR>
 ";
 
-  print 
-"<FORM METHOD=$request_method action=$base_address>
+  print "<FORM METHOD=$request_method action=$base_address>
  <INPUT NAME=action VALUE=webstump_admin_screen TYPE=hidden>
  Password: <INPUT NAME=password TYPE=password VALUE=\"\" SIZE=20>
  <BR>
@@ -247,89 +249,34 @@ of this installation. <HR>
  </FORM>
 ";
 
-  end_html(exitButtons($base_address, userData(), 'login'));
+  end_html( exitButtons( $base_address, userData(), 'login' ) );
 }
 
-sub display_article {
-  my ($newsgroup, $file, $class, $limit) = @_;
-  my ($dir) = getQueueDir($newsgroup) =~ m{^(.+)$};
-  my $articleDir = "$dir/$file";
-  my $linkbase = "$base_address_for_files/queues/$newsgroup/$file";
-  my $partsList = "$articleDir/text.files.lst";
-  my $lineCount = defined($limit) ? $limit : 1;
-  my $inc = defined($limit) ? 1 : 0;
-  # TODO make this configurable via options in a web form
-  my $prefix = $class eq 'multi' ? sub {
-    my ($line) = @_;
-    chomp $line;
-    return substr(q{>>>>>>  } . $line, 0, 75) . "\n";
-  } : sub {
-     return @_;
-  };
-
-  if ( -d "$articleDir" && open( my $partsFH, "<", "$partsList" ) ) {
-    my @attachments = ();
-    print "<HR>\n" if &print_article_warning( $newsgroup, $file );
-
-    while ( my $part = <$partsFH> ) {
-      my ( $filename, $type, $disposition ) = $part =~ m{^(\S+)\s+(\S+)\s+(\S+)$};
-      if ($disposition eq 'attachment') {
-        push @attachments, { filename => $filename, type => $type };
-        next;
-      }
-      if ( $type eq "text/plain" && $lineCount > 0 ) {
-        print qq{<PRE class="$class">\n};
-        open( my $FH, "$articleDir/$filename" );
-        while (my $line = <$FH>) {
-          print escape_html($prefix->($line));
-          last if ($lineCount -= $inc) <= 0;
-        }
-        close($FH);
-        print "\n</PRE>\n\n";
-      } else {
-        print qq{<div><span class="hline">$type $filename</span></div>};
-        print qq{<div>\n};
-        inline_image($linkbase, $filename, $type);
-        print qq{</div>\n};
-        }
-      }
-    close($partsFH);
-    foreach my $a (@attachments) {
-      my $afile = $a->{filename};
-      my $link = "$linkbase/$afile";
-      my $type = $a->{type};
-      print(qq{<p>Attachment <a href="$link">$afile</a> $a->{type}</p>\n});
-    }
-  } else {
-    print "This message ($articleDir) no longer exists -- maybe it was " .
-          "approved or rejected by another moderator.";
-  }
-}
 # single article moderation page
 sub html_moderate_article {
   my ($newsgroup) = required_parameter('newsgroup') =~ m{^([\w.]+)$};
-  my $moderator = $request{'moderator'};
-  my $password = $request{'password'};
+  my $moderator   = $request{'moderator'};
+  my $password    = $request{'password'};
   my ($file)      = ( shift @_ || &required_parameter('file') ) =~ m{^(\w+)$};
 
-  &begin_html( "Main Moderation Screen: $newsgroup" );
+  &begin_html("Main Moderation Screen: $newsgroup");
   print "<HR>\n";
 
   &read_rejection_reasons;
 
-  my $headers =article_file_name( $newsgroup, $file ) . "/headers.txt";
+  my $headers = article_file_name( $newsgroup, $file ) . "/headers.txt";
 
   print qq{<PRE class="single header">\n};
   open( my $FH, "$headers" );
-  while (my $line = <$FH>) {
+  while ( my $line = <$FH> ) {
     print escape_html($line);
   }
   close($FH);
   print "\n</PRE>\n\n";
 
-  display_article($newsgroup, $file, "single");
+  displayArticle( $base_address_for_files, $newsgroup, $file, "single" );
 
-      print "<HR>
+  print "<HR>
 <FORM NAME=decision METHOD=$request_method action=$base_address>
 ";
 
@@ -340,16 +287,16 @@ sub html_moderate_article {
 <OPTION VALUE=\"approve\">Approve</OPTION>
 ";
 
-      foreach (sort(keys %rejection_reasons)) {
-        print "<OPTION VALUE=\"reject $_\">Reject -- $rejection_reasons{$_}</OPTION>\n";
-      }
+  foreach ( sort( keys %rejection_reasons ) ) {
+    print "<OPTION VALUE=\"reject $_\">Reject -- $rejection_reasons{$_}</OPTION>\n";
+  }
 
-      print "</SELECT>\n";
+  print "</SELECT>\n";
 
-      print qq{<div class="modcomment">\n};
-      print qq{<label for="modcomment">Comment:</label>\n};
-      print qq{<textarea  id="modcomment" name="comment" rows="5" cols="72"></textarea>\n};
-      print qq{</div>\n};
+  print qq{<div class="modcomment">\n};
+  print qq{<label for="modcomment">Comment:</label>\n};
+  print qq{<textarea  id="modcomment" name="comment" rows="5" cols="72"></textarea>\n};
+  print qq{</div>\n};
 
   print "<BR>
 <INPUT TYPE=radio NAME=poster_decision VALUE=nothing CHECKED>Don't change poster's status</INPUT>
@@ -375,7 +322,8 @@ logging in as \"admin\" and editing respective lists of preapproved
 and banned threads  and posters.
 ";
 
-  &link_to_help( "filter-lists", "automatic filtering and filter lists, blacklisting and preapproved threads." );
+  &link_to_help( "filter-lists",
+    "automatic filtering and filter lists, blacklisting and preapproved threads." );
 
   print "Be really careful about blacklisting of everyone except spammers.</I><BR><BR>
 
@@ -389,12 +337,12 @@ and banned threads  and posters.
 <INPUT TYPE=reset VALUE=\"Reset\">
 ";
 
-      print "</FORM>\n\n";
-  print "<BR><A HREF=$base_address?action=change_password&newsgroup=$newsgroup&" .
-        "moderator=$moderator&password=$password>Change Password</A>";
+  print "</FORM>\n\n";
+  print "<BR><A HREF=$base_address?action=change_password&newsgroup=$newsgroup&"
+    . "moderator=$moderator&password=$password>Change Password</A>";
 
-  closedir( QUEUE );
-  end_html(exitButtons($base_address, userData(), 'moderate', $newsgroup));
+  closedir(QUEUE);
+  end_html( exitButtons( $base_address, userData(), 'moderate', $newsgroup ) );
 }
 
 # WebSTUMP administrative screen
@@ -404,12 +352,11 @@ sub webstump_admin_screen {
 
   my $password = $request{'password'};
 
-  &begin_html( "WebSTUMP Administration" );
+  &begin_html("WebSTUMP Administration");
   print "
 <FORM METHOD=$request_method action=$base_address>
 <INPUT NAME=action VALUE=admin_add_newsgroup TYPE=hidden>
 <INPUT NAME=password VALUE=\"$password\" TYPE=hidden>\n";
-
 
   print "
 <HR>
@@ -423,9 +370,9 @@ Admin Password For this group:<BR> <INPUT NAME=newsgroup_password VALUE=\"\" SIZ
 <INPUT TYPE=reset VALUE=\"Reset\"><HR>
 ";
 
-      print "</FORM>\n\n<PRE>\n";
+  print "</FORM>\n\n<PRE>\n";
 
-  end_html(exitButtons($base_address, userData(), 'siteAdmin'));
+  end_html( exitButtons( $base_address, userData(), 'siteAdmin' ) );
 }
 
 # WebSTUMP "add newsgroup" function
@@ -433,81 +380,69 @@ sub admin_add_newsgroup {
 
   &verify_admin_password;
 
-  my $newsgroup = &required_parameter( 'newsgroup_name' );
+  my $newsgroup = &required_parameter('newsgroup_name');
 
   $newsgroup =~ s/\///g;
-  $newsgroup = &untaint( $newsgroup );
+  $newsgroup = &untaint($newsgroup);
 
-  my $address = &required_parameter( 'newsgroup_approved_address' );
-  my $password = &required_parameter( 'newsgroup_password' );
+  my $address  = &required_parameter('newsgroup_approved_address');
+  my $password = &required_parameter('newsgroup_password');
 
-  &user_error( "Newsgroup $newsgroup already exists" )
+  &user_error("Newsgroup $newsgroup already exists")
     if defined $newsgroups_index{$newsgroup};
 
-  &user_error( "Password may only contain letters and digits" )
-    if( ! ($password =~ /^[a-zA-Z0-9]+$/ ) );
+  &user_error("Password may only contain letters and digits")
+    if ( !( $password =~ /^[a-zA-Z0-9]+$/ ) );
 
-  &begin_html( "WebSTUMP Administration: Newsgroup created" );
+  &begin_html("WebSTUMP Administration: Newsgroup created");
 
   print "<PRE>\n\n";
 
   print "Adding $newsgroup to $webstump_home/config/newsgroups.lst...";
   mkdir "$webstump_home/queues/$newsgroup", 0755;
   print " done.\n";
-  
+
   my $dir = "$webstump_home/config/newsgroups/$newsgroup";
-  
+
   print "Creating $dir...";
   mkdir $dir, 0755;
   print " done.\n";
-  
+
   print "Creating files in $dir...";
-  
-  &append_to_file( "$dir/blacklist", "" );
+
+  &append_to_file( "$dir/blacklist",   "" );
   &append_to_file( "$dir/address.txt", "$address\n" );
-  &append_to_file( "$dir/moderators", "ADMIN \U$password\n" );
-  &append_to_file( "$dir/rejection-reasons",
-"offtopic::a blatantly offtopic article, spam
+  &append_to_file( "$dir/moderators",  "ADMIN \U$password\n" );
+  &append_to_file(
+    "$dir/rejection-reasons",
+    "offtopic::a blatantly offtopic article, spam
 harassing::message of harassing content
 charter::message poorly formatted
 ignore::Discard message without notifying sender (spam etc)
-" );
+"
+  );
   &append_to_file( "$dir/whitelist", "" );
   print " done.\n";
 
-
   print "</PRE>\n";
 
-  end_html(exitButtons($base_address, userData(), 'siteAdmin'));
+  end_html( exitButtons( $base_address, userData(), 'siteAdmin' ) );
 }
 
 #
 #
-sub inline_image {
-  my ($base, $file, $type) = @_;
-
-  my ($subtype) = $type =~ m{^image/(gif|jpe?g|png)$};
-  my ($extension) = $file =~ m{\.(:?gif|jpe?g|png)$}i;
-  if ($subtype && $extension) {
-    print qq{<img src="$base/$file">};
-  } else {
-    print qq{<span class="warning">$type $file not shown</span>};
-  }
-}
-
 # prints warning if there is warning stored about the article
 sub print_article_warning {
   my ( $newsgroup, $file ) = @_;
 
-  my $warning_file =
-    article_file_name( $newsgroup, $file ) . "/stump-warning.txt";
+  my $warning_file = article_file_name( $newsgroup, $file ) . "/stump-warning.txt";
 
-  if( -r $warning_file ) {
+  if ( -r $warning_file ) {
     open( WARNING, $warning_file );
     my $warning = <WARNING>;
     $warning =~ s/</&lt;/g;
     $warning =~ s/>/&gt;/g;
-    close( WARNING );
+    close(WARNING);
     &print_image( "star.gif", "warning" );
     print "<FONT COLOR=red>$warning</FONT>\n";
     return 1;
@@ -518,34 +453,35 @@ sub print_article_warning {
 
 # main moderation page
 sub html_moderation_screen {
-  my $newsgroup = &required_parameter( 'newsgroup' );
+  my $newsgroup = &required_parameter('newsgroup');
   my $moderator = $request{'moderator'};
-  my $password = $request{'password'};
+  my $password  = $request{'password'};
 
   if ( ( $request{'next_screen'} || q{} ) eq 'single' ) {
 
     # we show a single article if the user so requested.
-    # just get the first article from the queue if any, otherwise show 
+    # just get the first article from the queue if any, otherwise show
     # an empty main screen.
-   
+
     my $dir = getQueueDir($newsgroup) || error("Unknown newsgroup $newsgroup");
     opendir( QUEUE, $dir ) || error("could not open queue directory $dir");
-  
+
     my $file;
     while ( my $subdir = readdir(QUEUE) ) {
       if ( -d "$dir/$subdir"
         && !( $subdir =~ /^\.+/ )
         && -r "$dir/$subdir/stump-prolog.txt" )
       {
-	      &html_moderate_article( $subdir );
-	      return;
+        &html_moderate_article($subdir);
+        return;
       }
     }
   } else {
-	# otherwise just show the moderator an empty main screen.
+
+    # otherwise just show the moderator an empty main screen.
   }
-    
-  &begin_html( "Main Moderation Screen: $newsgroup" );
+
+  &begin_html("Main Moderation Screen: $newsgroup");
   print "Welcome to the main moderation screen. Its main purpose is to 
 help you process most messages extremely quickly. For every message, it 
 presents you who sent it, as well as the first three non-blank lines.
@@ -559,53 +495,54 @@ queue.\n";
   &read_rejection_reasons;
 
   my $dir = "$queues_dir/$newsgroup";
-  opendir( QUEUE, $dir ) || &error( "could not open directory $dir" );
+  opendir( QUEUE, $dir ) || &error("could not open directory $dir");
 
   print "
   <FORM METHOD=$request_method action=$base_address>
   <INPUT NAME=action VALUE=approval_decision TYPE=hidden>";
-    &html_print_credentials;
-  
+  &html_print_credentials;
+
   my $subject        = "No Subject";
   my $from           = "From nobody";
   my $form_not_empty = "";
-  my $article_count = 0;
-  my $warning = "";
+  my $article_count  = 0;
+  my $warning        = "";
   while ( ( defined( my $subdir = readdir(QUEUE) ) && $article_count++ < 7 ) ) {
     my ($file) = $subdir =~ m{^(\w+)$};
     next if !$file;
     next if !-d "$dir/$file";
     if ( open( my $prologFH, "<:encoding(UTF-8)", "$dir/$file/stump-prolog.txt" ) ) {
       while (<$prologFH>) {
-          chomp;
+        chomp;
         if (/^Real-Subject: (?<subject>.{0,50})/i) {
           $subject = escape_html( $+{subject} );
         } elsif (/^(?<from>From: .{0,44})/i) {
           $from = escape_html( $+{from} );
-          } elsif( /^$/ ) {
-            last;
-          }
+        } elsif (/^$/) {
+          last;
         }
+      }
 
-        print "<HR><B>$from: $subject</B>(";
-        print "<A HREF=$base_address?action=moderate_article&newsgroup=$newsgroup&" .
-              "moderator=$moderator&password=$password&file=$file>Review/Comment/Preapprove</A>)<BR>\n";
-        print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=approve>Approve\n";
-#        print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=preapprove>PreApprove\n";
-        foreach (@short_rejection_reasons) {
-          print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=\"reject $_\">Reject \u$_\n";
-        }
-        close($prologFH);
+      print "<HR><B>$from: $subject</B>(";
+      print "<A HREF=$base_address?action=moderate_article&newsgroup=$newsgroup&"
+        . "moderator=$moderator&password=$password&file=$file>Review/Comment/Preapprove</A>)<BR>\n";
+      print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=approve>Approve\n";
 
-	print "<BR>\n";
+      #        print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=preapprove>PreApprove\n";
+      foreach (@short_rejection_reasons) {
+        print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=\"reject $_\">Reject \u$_\n";
+      }
+      close($prologFH);
 
-        display_article($newsgroup, $file, "multi", 5);
+      print "<BR>\n";
 
-        $form_not_empty = "yes";
+      displayArticle( $base_address_for_files, $newsgroup, $file, "multi", 5 );
+
+      $form_not_empty = "yes";
     }
   }
 
-  if( $form_not_empty ) {
+  if ($form_not_empty) {
     print "<HR> <INPUT TYPE=submit VALUE=Submit>
 <INPUT TYPE=reset VALUE=Reset>
 ";
@@ -613,20 +550,19 @@ queue.\n";
     print "No articles present in the queue\n<HR>\n";
   }
 
-  print "<A HREF=$base_address?action=change_password&newsgroup=$newsgroup&" .
-        "moderator=$moderator&password=$password>Change Password</A>";
-
+  print "<A HREF=$base_address?action=change_password&newsgroup=$newsgroup&"
+    . "moderator=$moderator&password=$password>Change Password</A>";
 
   print "</FORM>\n\n";
-  closedir( QUEUE );
-  end_html(exitButtons($base_address, userData(), 'articleList', $newsgroup));
+  closedir(QUEUE);
+  end_html( exitButtons( $base_address, userData(), 'articleList', $newsgroup ) );
 }
 
 # prints hidden fields -- credentials
 sub html_print_credentials {
   my $newsgroup = $request{'newsgroup'};
   my $moderator = $request{'moderator'};
-  my $password = $request{'password'};
+  my $password  = $request{'password'};
 
   print "
  <INPUT NAME=newsgroup VALUE=\"$newsgroup\" TYPE=hidden>
@@ -636,18 +572,18 @@ sub html_print_credentials {
 
 # newsgroup admin page
 sub html_newsgroup_management {
-  my ($newsgroup, $user) = @_;
-  &begin_html( "Administer $newsgroup" );
+  my ( $newsgroup, $user ) = @_;
+  &begin_html("Administer $newsgroup");
 
-  userManagementForm($base_address, $newsgroup, $user, $users);
-  if (isListAdmin($user)) {
-    html_newsgroup_list_forms($newsgroup, $user);
+  userManagementForm( $base_address, $newsgroup, $user, $users );
+  if ( isListAdmin($user) ) {
+    html_newsgroup_list_forms( $newsgroup, $user );
   }
-  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
+  end_html( exitButtons( $base_address, userData(), 'admin', $request{newsgroup} ) );
 }
 
 sub html_newsgroup_list_forms {
-  my ($newsgroup, $user) = @_;
+  my ( $newsgroup, $user ) = @_;
   print "
  <FORM METHOD=$request_method action=$base_address>
  <INPUT NAME=action VALUE=edit_list TYPE=hidden>";
@@ -671,7 +607,7 @@ sub html_newsgroup_list_forms {
   &link_to_help( "filter-lists", "filtering lists" );
 
   print "</FORM>\n";
-  
+
   # Control behaviour for bad Newsgroups header
   print <<"END";
 <HR>
@@ -688,16 +624,16 @@ END
 
 sub manage_bad_newsgroups_header {
   my ($newsgroup) = @_;
-  my ($actions, $default) = get_bad_newsgroups_header_options($newsgroup);
+  my ( $actions, $default ) = get_bad_newsgroups_header_options($newsgroup);
   &read_rejection_reasons;
   my $options = [
-    { value => "noAction", text => "Fix header only"},
-    { value => "warn", text => "Fix header and show warning"},
-    map { {value  => "reject $_", text => "reject $_: $rejection_reasons{$_}"} }
-      sort(keys %rejection_reasons)
+    { value => "noAction", text => "Fix header only" },
+    { value => "warn",     text => "Fix header and show warning" },
+    map { { value => "reject $_", text => "reject $_: $rejection_reasons{$_}" } }
+      sort( keys %rejection_reasons )
   ];
 
-  &begin_html( "Edit bad Newsgroups header actions for $newsgroup" );
+  &begin_html("Edit bad Newsgroups header actions for $newsgroup");
   print <<"END";
   <p>Messages sent directly to the group submission address as email
   rather than from a news client or via a news server may not have
@@ -710,10 +646,10 @@ END
   &html_print_credentials;
 
   foreach my $item (@$default) {
-    if ($item->{kind}) {
-      my $kind = $item->{kind};
-      my $id = "kind.$kind";
-      my $name = $kind;
+    if ( $item->{kind} ) {
+      my $kind  = $item->{kind};
+      my $id    = "kind.$kind";
+      my $name  = $kind;
       my $label = $item->{text};
       print <<"END";
       <p>
@@ -721,7 +657,7 @@ END
 END
       foreach my $option (@$options) {
         my $selected = $actions->{$kind} eq $option->{value} ? ' selected' : q{};
-      print <<"END";
+        print <<"END";
      <option value="$option->{value}"$selected>$option->{text}</option>
 END
       }
@@ -738,32 +674,31 @@ END
 </form>
 END
 
-  end_html(exitButtons($base_address, userData(), 'admin', $newsgroup));
+  end_html( exitButtons( $base_address, userData(), 'admin', $newsgroup ) );
 }
 
 # edit config list
 sub edit_configuration_list {
 
-  my $list_to_edit = &required_parameter( 'list_to_edit' );
+  my $list_to_edit = &required_parameter('list_to_edit');
 
-  $list_to_edit = &check_config_list( $list_to_edit );
+  $list_to_edit = &check_config_list($list_to_edit);
 
-  my $list_file = &full_config_file_name( $list_to_edit );
+  my $list_file = &full_config_file_name($list_to_edit);
 
   my $list_content = "";
 
-  if( open( LIST, $list_file ) ) {
-    $list_content .= $_ while( <LIST> );
-    close( LIST );
+  if ( open( LIST, $list_file ) ) {
+    $list_content .= $_ while (<LIST>);
+    close(LIST);
   }
 
   $list_content =~ s/</&lt;/g;
   $list_content =~ s/>/&gt/g;
 
-  &begin_html( "Edit $list_to_edit" );
+  &begin_html("Edit $list_to_edit");
 
-  print
-" <FORM METHOD=$request_method action=$base_address>
+  print " <FORM METHOD=$request_method action=$base_address>
  <INPUT NAME=action VALUE=set_config_list TYPE=hidden>
  <INPUT NAME=list_to_edit VALUE=$list_to_edit TYPE=hidden>";
   &html_print_credentials;
@@ -778,23 +713,22 @@ $list_content</TEXTAREA>
  </FORM>
 ";
 
-  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
+  end_html( exitButtons( $base_address, userData(), 'admin', $request{newsgroup} ) );
 }
 
 # password change page
 sub html_change_password {
-  my ($newsgroup, $user, $pwChange) = @_;
-  &begin_html( "Change Password" );
-  changePasswordForm($base_address, $newsgroup, $user, $users, $pwChange );
-  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
+  my ( $newsgroup, $user, $pwChange ) = @_;
+  &begin_html("Change Password");
+  changePasswordForm( $base_address, $newsgroup, $user, $users, $pwChange );
+  end_html( exitButtons( $base_address, userData(), 'admin', $request{newsgroup} ) );
 }
 
-
 # newsgroup creation form
-sub init_request_newsgroup_creation{
-  my $newsgroup = &required_parameter( 'newsgroup' );
+sub init_request_newsgroup_creation {
+  my $newsgroup = &required_parameter('newsgroup');
 
-  &begin_html( "Request Creation of $newsgroup" );
+  &begin_html("Request Creation of $newsgroup");
 
   print "This page helps you ask the system administrator of your domain
 to create <B>$newsgroup</B> on your server. Type in your domain name and
@@ -817,21 +751,19 @@ they could request creation of their newsgroups by themselves.\n";
  </FORM>
 ";
 
-  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
+  end_html( exitButtons( $base_address, userData(), 'admin', $request{newsgroup} ) );
 }
 
-
 # newsgroup creation completion
-sub complete_newsgroup_creation_request{
-  my $newsgroup = &required_parameter( 'newsgroup' );
-  my $domain_name = &required_parameter( 'domain_name' );
+sub complete_newsgroup_creation_request {
+  my $newsgroup   = &required_parameter('newsgroup');
+  my $domain_name = &required_parameter('domain_name');
 
-  if( !($domain_name =~ /(^[a-zA-Z0-9\.-_]+$)/) ) {
-    &user_error( "invalid domain name" );
+  if ( !( $domain_name =~ /(^[a-zA-Z0-9\.-_]+$)/ ) ) {
+    &user_error("invalid domain name");
   }
 
   $domain_name = $1;
-
 
   my $request = "To: news\@$domain_name, usenet\@$domain_name, postmaster\@$domain_name
 Subject: Please create $newsgroup (Moderated)
@@ -859,46 +791,40 @@ Sincerely,
   &email_message( $request, "usenet\@$domain_name" );
   &email_message( $request, "postmaster\@$domain_name" );
 
-  &begin_html( "Request to create $newsgroup sent" );
+  &begin_html("Request to create $newsgroup sent");
 
   print "The following request has been sent:<HR><PRE>\n";
 
   print "$request</PRE>\n";
 
-  end_html(exitButtons($base_address, userData(), 'admin', $request{newsgroup}));
+  end_html( exitButtons( $base_address, userData(), 'admin', $request{newsgroup} ) );
 }
 
 # displays help
 sub display_help {
-  my $topic_name = &required_parameter( "topic" );
+  my $topic_name = &required_parameter("topic");
 
   $topic_name =~ s/\///g;
   $topic_name =~ s/\.\.//g;
-  $topic_name = &untaint( $topic_name );
+  $topic_name = &untaint($topic_name);
 
   my $file = "$webstump_home/doc/help/$topic_name.html";
 
-  &error( "Topic $topic_name not found in $file." ) 
-	if ! -r $file;
+  &error("Topic $topic_name not found in $file.")
+    if !-r $file;
 
   open( FILE, "$file" );
   my $help = "";
-  $help .= $_ while( <FILE> );
-  close( FILE );
+  $help .= $_ while (<FILE>);
+  close(FILE);
 
   $help =~ s/##/$base_address?action=help&topic=/g;
 
-  &begin_html( "$topic_name" );
+  &begin_html("$topic_name");
 
   print $help;
 
   print "<HR>";
 }
-
-
-
-
-
-
 
 1;

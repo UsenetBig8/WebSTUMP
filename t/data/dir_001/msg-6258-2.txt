@@ -1,0 +1,23 @@
+On 18/12/2021 16:11, Owen Rees wrote:
+> line 1 of 10 quoted lines
+> line 2 of 10 quoted lines
+> line 3 of 10 quoted lines
+> line 4 of 10 quoted lines
+> line 5 of 10 quoted lines
+> line 6 of 10 quoted lines
+> line 7 of 10 quoted lines
+> line 8 of 10 quoted lines
+> line 9 of 10 quoted lines
+> line 10 of 10 quoted lines
+New text line 1 follows quoted, no blank line.
+
+New text line 3, line 2 is blank
+> line 1 of 3 quoted lines
+> line 2 of 3 quoted lines
+> line 3 of 3 quoted lines
+
+New text line 5, line 4 is blank and follows quoted
+New text line 6
+New text line 7
+New text line 8
+

@@ -1,0 +1,43 @@
+From news@owen-VBox.lan  Sat Dec 18 16:14:24 2021
+Return-Path: <news@owen-VBox.lan>
+X-Original-To: modbot+misc-test-moderated@localhost
+Delivered-To: modbot+misc-test-moderated@localhost
+Received: by owen-VBox.lan (Postfix, from userid 9)
+	id 0A17E2821B4; Sat, 18 Dec 2021 16:14:24 +0000 (GMT)
+To: modbot+misc-test-moderated@localhost
+From: Owen Rees <owen@localhost.localdomain>
+Newsgroups: misc.test.moderated
+Subject: Re: Test quoted text
+Organization: A poorly-installed InterNetNews site
+Message-ID: <spl1cv$5j3$2@owen-VBox.localdomain>
+References: <spl11l$5j3$1@owen-VBox.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101
+ Thunderbird/78.14.0
+Content-Language: en-US
+
+On 18/12/2021 16:11, Owen Rees wrote:
+> line 1 of 10 quoted lines
+> line 2 of 10 quoted lines
+> line 3 of 10 quoted lines
+> line 4 of 10 quoted lines
+> line 5 of 10 quoted lines
+> line 6 of 10 quoted lines
+> line 7 of 10 quoted lines
+> line 8 of 10 quoted lines
+> line 9 of 10 quoted lines
+> line 10 of 10 quoted lines
+New text line 1 follows quoted, no blank line.
+
+New text line 3, line 2 is blank
+> line 1 of 3 quoted lines
+> line 2 of 3 quoted lines
+> line 3 of 3 quoted lines
+
+New text line 5, line 4 is blank and follows quoted
+New text line 6
+New text line 7
+New text line 8
+
