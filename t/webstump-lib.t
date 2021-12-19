@@ -165,6 +165,10 @@ sub test_processWebRequest {
       fullAdmin => { %auth, edit_configuration_list => 1 },
       listAdmin => { %auth, edit_configuration_list => 1 }
     },
+    manageRejectionReasons => {
+      fullAdmin => { %auth, manageRejectionReasons => 1 },
+      listAdmin => { %auth, manageRejectionReasons => 1 }
+    },
     add_user => {
       fullAdmin => { %auth, add_user => 1, %manage },
       userAdmin => { %auth, add_user => 1, %manage }
@@ -247,7 +251,7 @@ sub test_processWebRequest {
       html_moderate_article html_change_password validate_change_password
       init_request_newsgroup_creation complete_newsgroup_creation_request
       webstump_admin_screen admin_login_screen admin_add_newsgroup
-      display_help updateUsers
+      display_help updateUsers 
       )
   );
   foreach my $action ( sort( keys(%actions) ) ) {
@@ -257,6 +261,14 @@ sub test_processWebRequest {
       my $mock  = Test::MockModule->new( 'main', no_auto => 1 )->mock(
         user_error => sub { $calls->{user_error}++; exit(0); },
         error      => sub { $calls->{error}++;      exit(0); },
+        manageRejectionReasons => sub {
+          my ($url, $user, $request, $newsgroup) = @_;
+          $calls->{manageRejectionReasons}++;
+          is_deeply($request, $case->{req}, "$case->{name} manageRejectionReasons called with request");
+          my $expectuser = $case->{req}->{moderator};
+          is($user, $users->{$expectuser}, "$case->{name} manageRejectionReasons called with user");
+          return 0;
+        },
         map {
           my $f = $_;
           ( $f => sub { $calls->{$f}++ } )

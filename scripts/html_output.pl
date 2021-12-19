@@ -27,6 +27,8 @@ use strict;
 use warnings;
 use HTML::Escape qw/escape_html/;
 use Webstump::Display qw(exitButtons);
+use Webstump::ListAdmin qw(getRejectionReasons);
+use Webstump::ListAdminDisplay qw(listManagementForm);
 use Webstump::User qw(userData isListAdmin);
 use Webstump::UserDisplay qw(changePasswordForm userManagementForm );
 use Webstump::ModDisplay qw(displayArticle);
@@ -38,23 +40,22 @@ our $users;
 our @newsgroups_array;
 our %newsgroups_index;
 our $queues_dir;
-our %rejection_reasons;
 our %request;
 our $request_method;
-our @short_rejection_reasons;
 our $STUMP_URL;
 our $webstump_config;
 our $webstump_home;
 
 sub begin_html {
   my $title = pop(@_);
+  my $htitle = escape_html($title);
   print <<"END";
 Content-Type: text/html
 
 <html>
 <head>
 <meta charset="UTF-8">
-<TITLE>$title</TITLE>
+<TITLE>$htitle</TITLE>
 <style>
   .modcomment label,textarea { vertical-align: middle; }
   span.hline:after,span.hline:before {
@@ -73,7 +74,7 @@ Content-Type: text/html
 </style>
 </head>
 <BODY BGCOLOR="#C5C5FF" BACKGROUND=$base_address_for_files/images/bg1.jpg>
-<H1>$title</H1>
+<H1>$htitle</H1>
 
 END
   if (&is_demo_mode) {
@@ -262,8 +263,6 @@ sub html_moderate_article {
   &begin_html("Main Moderation Screen: $newsgroup");
   print "<HR>\n";
 
-  &read_rejection_reasons;
-
   my $headers = article_file_name( $newsgroup, $file ) . "/headers.txt";
 
   print qq{<PRE class="single header">\n};
@@ -286,9 +285,9 @@ sub html_moderate_article {
   print "<SELECT NAME=\"decision_$file\">
 <OPTION VALUE=\"approve\">Approve</OPTION>
 ";
-
-  foreach ( sort( keys %rejection_reasons ) ) {
-    print "<OPTION VALUE=\"reject $_\">Reject -- $rejection_reasons{$_}</OPTION>\n";
+  my $reasons = getRejectionReasons($newsgroup);
+  foreach ( sort( keys %$reasons ) ) {
+    print "<OPTION VALUE=\"reject $_\">Reject -- $reasons->{$_}</OPTION>\n";
   }
 
   print "</SELECT>\n";
@@ -492,8 +491,6 @@ use Review/Comment function from this screen or from a subsequent screen.
 Remember that if you do not make any decision, the article would stay in the
 queue.\n";
 
-  &read_rejection_reasons;
-
   my $dir = "$queues_dir/$newsgroup";
   opendir( QUEUE, $dir ) || &error("could not open directory $dir");
 
@@ -529,7 +526,8 @@ queue.\n";
       print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=approve>Approve\n";
 
       #        print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=preapprove>PreApprove\n";
-      foreach (@short_rejection_reasons) {
+      my $reasons = getRejectionReasons($newsgroup);
+      foreach (sort(keys(%$reasons))) {
         print "<INPUT TYPE=radio NAME=\"decision_$file\" VALUE=\"reject $_\">Reject \u$_\n";
       }
       close($prologFH);
@@ -575,62 +573,22 @@ sub html_newsgroup_management {
   my ( $newsgroup, $user ) = @_;
   &begin_html("Administer $newsgroup");
 
-  userManagementForm( $base_address, $newsgroup, $user, $users );
-  if ( isListAdmin($user) ) {
-    html_newsgroup_list_forms( $newsgroup, $user );
-  }
+  if (userManagementForm( $base_address, $newsgroup, $user, $users )) {
+    print qq{<hr>\n};
+  };
+  listManagementForm( $base_address, $newsgroup, $user );
   end_html( exitButtons( $base_address, userData(), 'admin', $request{newsgroup} ) );
-}
-
-sub html_newsgroup_list_forms {
-  my ( $newsgroup, $user ) = @_;
-  print "
- <FORM METHOD=$request_method action=$base_address>
- <INPUT NAME=action VALUE=edit_list TYPE=hidden>";
-  &html_print_credentials;
-  print "
-  Configuration List: <SELECT NAME=list_to_edit>
-
-    <OPTION VALUE=good.posters.list>Good Posters List
-    <OPTION VALUE=watch.posters.list>Suspicious Posters List
-    <OPTION VALUE=bad.posters.list>Banned Posters List
-    <OPTION VALUE=good.subjects.list>Good Subjects List
-    <OPTION VALUE=watch.subjects.list>Suspicious Subjects List
-    <OPTION VALUE=bad.subjects.list>Banned Subjects List
-    <OPTION VALUE=watch.words.list>Suspicious Words List
-    <OPTION VALUE=bad.words.list>Banned Words List
-
-  </SELECT>
-  <INPUT TYPE=submit VALUE=\"Edit\">
-  <INPUT TYPE=reset VALUE=Reset>";
-
-  &link_to_help( "filter-lists", "filtering lists" );
-
-  print "</FORM>\n";
-
-  # Control behaviour for bad Newsgroups header
-  print <<"END";
-<HR>
-<FORM METHOD=$request_method action=$base_address>
-  <INPUT NAME=action VALUE=manage_bad_newsgroups_header TYPE=hidden>
-END
-  &html_print_credentials;
-  print <<'END';
-  <INPUT TYPE=submit VALUE="Manage bad Newsgroups header action">
-</FORM>
-END
-
 }
 
 sub manage_bad_newsgroups_header {
   my ($newsgroup) = @_;
   my ( $actions, $default ) = get_bad_newsgroups_header_options($newsgroup);
-  &read_rejection_reasons;
+  my $reasons = getRejectionReasons($newsgroup);
   my $options = [
     { value => "noAction", text => "Fix header only" },
     { value => "warn",     text => "Fix header and show warning" },
-    map { { value => "reject $_", text => "reject $_: $rejection_reasons{$_}" } }
-      sort( keys %rejection_reasons )
+    map { { value => "reject $_", text => "reject $_: $reasons->{$_}" } }
+      sort( keys %$reasons )
   ];
 
   &begin_html("Edit bad Newsgroups header actions for $newsgroup");

@@ -22,6 +22,7 @@
 use warnings;
 
 use Webstump::User qw( updateUsers isListAdmin isUserAdmin isAdmin isModerator );
+use Webstump::ListAdminDisplay qw ( manageRejectionReasons );
 
 # Declare gloal variables.
 # TODO eliminate these as far as possile
@@ -489,22 +490,6 @@ sub validate_change_password {
   }
 }
 
-# reads rejection reasons
-sub read_rejection_reasons {
-  my $newsgroup = &required_parameter( 'newsgroup' );
-  my $reasons = &full_config_file_name( "rejection-reasons" );
-  open( REASONS, $reasons ) || &error( "Could not open file $reasons" );
- 
-  while( <REASONS> ) {
-	chop;
-	my ($name, $title) = split( /::/ );
-	$rejection_reasons{$name} = $title;
-        push @short_rejection_reasons, $name;
-  }
-
-  close REASONS;
-}
-
 # email_message message recipient
 sub email_message {
   my $recipient = pop( @_ );
@@ -650,7 +635,46 @@ sub processWebRequest {
 
   $moderator = "\L$moderator" if defined($moderator);
 
-  if( $action eq "login_screen" ) {
+  # listAdmin actions are processed in a standard way.
+  # If the action returns true (1) show the management page
+  # otherwise the action has shown a different page.
+  my $ListAdminActions = {
+    manageRejectionReasons => {
+      action => sub { return manageRejectionReasons($base_address, $_[0], \%request, $newsgroup); },
+      description => 'manage rejection reasons'
+    },
+    edit_list => {
+      action => sub { edit_configuration_list(); return 0; },
+      description => 'edit lists'
+    },
+    set_config_list => {
+      action => sub { set_config_list(); return 1; },
+      description => 'update configuration'
+    },
+    manage_bad_newsgroups_header => {
+      action => sub { manage_bad_newsgroups_header($newsgroup); return 0;},
+      description => 'manage bad newsgroups header actions'
+    },
+    manage_bad_newsgroups_header_set => {
+      action => sub { manage_bad_newsgroups_header_set($newsgroup); return 1;},
+      description => 'manage bad newsgroups header actions'
+    },
+    manage_bad_newsgroups_header_cancel => {
+      action => sub { return 1; },
+      description => 'manage bad newsgroups header actions'
+    },
+  };
+  if( my $actionSpec = $ListAdminActions->{$action} ) {
+    my $user = authenticate( $newsgroup, $moderator, $password );
+    if ( isListAdmin($user) ) {
+      if ($actionSpec->{action}->($user)) {
+        html_newsgroup_management( $newsgroup, $user );
+      }
+    } else {
+      &security_alert( "User $moderator tried to $actionSpec->{description} in $newsgroup" );
+      &user_error("Only users with list admin rights can $actionSpec->{description}");
+    }
+  } elsif( $action eq "login_screen" ) {
     &html_login_screen;
   } elsif( $action eq "moderation_screen" ) {
     my $user = authenticate( $newsgroup, $moderator, $password );
@@ -684,14 +708,6 @@ sub processWebRequest {
       &security_alert( "User $moderator tried to update users in $newsgroup" );
       &user_error("This action requires user admin rights");
     }
-  } elsif( $action eq "edit_list" ) {
-    my $user = authenticate( $newsgroup, $moderator, $password );
-    if ( isListAdmin($user) ) {
-      &edit_configuration_list;
-    } else {
-      &security_alert( "Moderator $moderator tried to edit list in $newsgroup" );
-      &user_error("Only users with admin rights can edit lists");
-    }
   } elsif( $action eq "add_user" ) {
     my $user = authenticate( $newsgroup, $moderator, $password );
     if ( isUserAdmin($user) ) {
@@ -700,40 +716,6 @@ sub processWebRequest {
     } else {
       &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
       &user_error("Only users with admin rights can add or delete users");
-    }
-  } elsif( $action eq "set_config_list" ) {
-    my $user = authenticate( $newsgroup, $moderator, $password );
-    if ( isListAdmin($user) ) {
-      &set_config_list;
-      html_newsgroup_management( $newsgroup, $user );
-    } else {
-      &security_alert("Moderator $moderator tried to add user in $newsgroup");
-      &user_error( "Only administrator (login ADMIN) can add or delete users" );
-    }
-  } elsif( $action eq "manage_bad_newsgroups_header" ) {
-    my $user = authenticate( $newsgroup, $moderator, $password );
-    if ( isListAdmin($user) ) {
-      manage_bad_newsgroups_header($newsgroup);
-    } else {
-      &security_alert( "Moderator $moderator tried to manage bad newsgroups headers in $newsgroup" );
-      &user_error("Only users with admin rights can manage bad newsgroups header actions");
-    }
-  } elsif( $action eq "manage_bad_newsgroups_header_set" ) {
-    my $user = authenticate( $newsgroup, $moderator, $password );
-    if ( isListAdmin($user) ) {
-    manage_bad_newsgroups_header_set($newsgroup);
-      html_newsgroup_management( $newsgroup, $user );
-    } else {
-      &security_alert( "Moderator $moderator tried to manage bad newsgroups headers in $newsgroup" );
-      &user_error("Only users with admin rights can manage bad newsgroups header actions");
-    }
-  } elsif( $action eq "manage_bad_newsgroups_header_cancel" ) {
-    my $user = authenticate( $newsgroup, $moderator, $password );
-    if ( isListAdmin($user) ) {
-      html_newsgroup_management( $newsgroup, $user );
-    } else {
-      &security_alert( "Moderator $moderator tried to manage bad newsgroups headers in $newsgroup" );
-      &user_error("Only users with admin rights can manage bad newsgroups header actions");
     }
    } elsif( $action eq "delete_user" ) {
     my $user = authenticate( $newsgroup, $moderator, $password );

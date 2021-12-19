@@ -38,7 +38,7 @@ sub userManagementForm {
   my ( $url, $newsgroup, $user, $users ) = @_;
 
   # Show the form only if user has user admin rights
-  return if !isUserAdmin($user);
+  return 0 if !isUserAdmin($user);
 
   my $hurl = escape_html($url);
   print qq{<div class="currentUsers">\n};
@@ -101,6 +101,7 @@ sub userManagementForm {
   print qq{<button type="submit" name="update" value="update">Update</button>\n};
   print qq{</form>\n};
   print qq{</div>\n};
+  return 1;
 }
 
 sub changePasswordForm {

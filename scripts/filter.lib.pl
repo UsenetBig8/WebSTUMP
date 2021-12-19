@@ -22,6 +22,7 @@
 use strict;
 use warnings;
 
+use Webstump::ListAdmin qw(decisionForSTUMP);
 
 # processes approval decision.
 #
@@ -44,8 +45,7 @@ sub process_approval_decision {
 		"Subject: $Subject\n" .
                 "Organization: http://www.algebra.com/~ichudov/stump\n";
 
-  $message .= "\n$decision\n";
-  $message .= "comment $comment\n" if $comment;
+  $message .= decisionForSTUMP($decision, $comment);
   &email_message( $message, $address );
 
 print STDERR "DECISION: $decision for $ShortDirectoryName sent to $address, for $newsgroup\n";

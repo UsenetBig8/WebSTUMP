@@ -1,0 +1,6 @@
+offtopic::Message is grossly off topic (spam, turks, etc)
+crosspost::Inappropriate crossposting
+charter::Technical violation of charter (binary, exc. quoting)
+harassing::Message of harassing/insulting/hatemongering content
+ignore::Reject without notifying sender (spam, etc)
+test::Reject reason used in tests

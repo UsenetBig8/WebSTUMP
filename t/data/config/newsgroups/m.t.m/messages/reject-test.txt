@@ -1,0 +1,5 @@
+This is a test of the Webstump managed rejection messages. If the 'test' reason is selected then this message should be included in the mail to be sent rather than sending the 'test' reason to STUMP.
+
+This also tests the wrapping of this message in the email. The text will be soft-wrapped in the textarea (at least by my browser) which makes it easier to write paragraphs but when sending the email it should be wrapped to 72 columns.
+
+Signed, Moderators
