@@ -45,3 +45,18 @@ c_compile:
 
 clean: 
 	rm bin/wrapper
+
+# For people working on the code:
+
+# run the tests
+# note that 'cover -test' will use the 'test' target to generate a coverage report
+.PHONY: test
+test:
+	prove -I scripts t
+	
+# generate a test coverage report - or use 'cover -test'
+coverage:
+	cover -delete
+	for f in t/*.t; do perl -MDevel::Cover -I scripts $$f; done
+	cover -report html
+

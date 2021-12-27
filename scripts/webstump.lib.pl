@@ -452,18 +452,6 @@ sub set_config_list {
   rename ("$list_file.new", "$list_file");
 }
 
-# deletes a user
-sub delete_user {
-  my $user = &required_parameter( "user" );
-  my $id   = "\U$user";
-  &user_error("User $id does not exist!")
-    if ( !defined $users->{$id} );
-  &user_error( "Cannot delete user admin" )
-    if ( $id eq "ADMIN" );
-  Webstump::User::deleteUser( $users, $id );
-  Webstump::User::saveUsersToFile($users);
-}
-
 # validate password change
 sub validate_change_password {
   my ($newsgroup, $user) = @_;
@@ -716,15 +704,6 @@ sub processWebRequest {
     } else {
       &security_alert( "Moderator $moderator tried to add user in $newsgroup" );
       &user_error("Only users with admin rights can add or delete users");
-    }
-   } elsif( $action eq "delete_user" ) {
-    my $user = authenticate( $newsgroup, $moderator, $password );
-    if ( isUserAdmin($user) ) {
-      &delete_user;
-      html_newsgroup_management( $newsgroup, $user );
-    } else {
-      &security_alert("Moderator $moderator tried to delete user in $newsgroup");
-      &user_error( "Only administrator (login ADMIN) can add or delete users" );
     }
   } elsif( $action eq "approval_decision" ) {
     my $user = authenticate( $newsgroup, $moderator, $password );

@@ -91,15 +91,11 @@ sub changePassword {
   $users->{$id}->{pw} = $new_password;
 }
 
-sub deleteUser {
-  my ( $users, $id ) = @_;
-  delete $users->{$id};
-}
-
 sub readUsers {
   my ( $fh, $legacy ) = @_;
   my $users = {};
   while ( my $rawline = <$fh> ) {
+    chomp $rawline;
     my ($line) = $rawline =~ m{\A([\w\s]+)\z};
     next unless $line;
     my ( $id, $pw, @rights ) = split( qr{\s}, $line );
@@ -172,14 +168,28 @@ sub updateUserRights {
 sub updateUsers {
   my ( $request, $newsgroup, $users ) = @_;
   if ( my $deleteUser = $request->{deleteUser} ) {
+    if ($deleteUser eq 'ADMIN') {
+      # The form does not provide the button but the request
+      # couild be created by other means
+      main::user_error("User ADMIN cannot be deleted");
+    }
     delete $users->{$deleteUser};
   } else {
+    # Error if a new user does not have a passsword so check that
+    # first rather than showing an error after updating user rights
+    my $addUser = $request->{"new-user"};
+    if ( $addUser && !$request->{"new-pw"} ) {
+      main::user_error("New user $addUser must have a password");
+    }
     foreach my $id ( keys(%$users) ) {
       updateUserRights( $request, $users->{$id}, $id );
     }
-    if ( my $addUser = $request->{"new-user"} ) {
+    # Add the user after updating the existing ones or the 
+    # update will delete the new user rights because the request
+    # has 'new-' rather than 'USER-'
+    if ($addUser) {
       my $id = uc($addUser);
-      my $pw = uc( $request->{"new-pw"} // q{} );
+      my $pw = uc( $request->{"new-pw"} );
       addUser( $users, $id, $pw, $request );
     }
   }

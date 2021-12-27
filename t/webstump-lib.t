@@ -195,10 +195,6 @@ sub test_processWebRequest {
     },
     manage_bad_newsgroups_header_cancel =>
       { fullAdmin => { %auth, %manage }, listAdmin => { %auth, %manage } },
-    delete_user => {
-      fullAdmin => { %auth, delete_user => 1, %manage },
-      userAdmin => { %auth, delete_user => 1, %manage }
-    },
     change_password => {
       fullAdmin => { %auth, html_change_password => 1 },
       listAdmin => { %auth, html_change_password => 1 },
@@ -247,7 +243,7 @@ sub test_processWebRequest {
       read_moderators
       html_login_screen html_moderation_screen html_newsgroup_management
       add_user edit_configuration_list set_config_list manage_bad_newsgroups_header
-      manage_bad_newsgroups_header_set delete_user approval_decision
+      manage_bad_newsgroups_header_set approval_decision
       html_moderate_article html_change_password validate_change_password
       init_request_newsgroup_creation complete_newsgroup_creation_request
       webstump_admin_screen admin_login_screen admin_add_newsgroup

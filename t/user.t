@@ -24,6 +24,9 @@ use warnings;
 
 use Test::More;
 use Test::MockModule;
+use Test::Trap;
+use File::Temp qw(tempdir);
+use File::Path qw(make_path);
 
 # Run tests inside a function so that we can just 'return' if
 # a failure means it is not worth doing more of the tests under that
@@ -38,6 +41,15 @@ sub tests {
       )
   ) || return;
   test_userData();
+  test_fixLegacyPermissions();
+  test_rights_accessors();
+  test_readUsers();
+  test_readUsers_legacy();
+  test_saveUsers();
+  test_changePassword();
+  test_updateUsers();
+  test_readUsersFromFile();
+  test_saveUsersToFile();
 }
 
 tests();
@@ -47,13 +59,6 @@ sub test_userData {
   can_ok( "Webstump::User", 'userData' ) || return;
   test_userData_undef();
   test_userData_known();
-  test_fixLegacyPermissions();
-  test_rights_accessors();
-  test_readUsers();
-  test_readUsers_legacy();
-  test_saveUsers();
-  test_changePassword();
-  test_updateUsers();
 }
 
 sub test_userData_undef {
@@ -165,7 +170,9 @@ sub test_readUsers {
 ADMIN APW fullAdmin listAdmin userAdmin
 USER1 U1PW moderate fullAdmin listAdmin
 USER2 U2PW moderate listAdmin
+
 USER3 U3PW moderate
+
 END
   my $expect = {
     ADMIN => {
@@ -295,6 +302,7 @@ sub test_changePassword {
 }
 
 sub test_updateUsers {
+  my $test        = 'updateUsers';
   my $requestBase = {
     moderator => 'ADMIN',
     password  => 'ADMINPW',
@@ -642,23 +650,200 @@ sub test_updateUsers {
         }
       }
     },
+    {
+      name     => 'add user without password',
+      userBase => {
+        ADMIN => { id => 'ADMIN', pw => 'APW',  fullAdmin => 1, listAdmin => 1 },
+        USER1 => { id => 'USER1', pw => 'U1PW', moderate  => 1, fullAdmin => 1, listAdmin => 1 },
+      },
+      req => {
+        "ADMIN-fullAdmin" => 'on',
+        "ADMIN-listAdmin" => 'on',
+        "USER1-moderate"  => 'on',
+        "USER1-fullAdmin" => 'on',
+        "USER1-listAdmin" => 'on',
+        "new-user"        => q{fred},
+        "new-pw"          => q{},
+        "new-moderate"    => 'on',
+      },
+      error => {
+        calls => { user_error => ['New user fred must have a password'] },
+      }
+    },
+    {
+      name     => 'delete ADMIN user',
+      userBase => {
+        ADMIN => { id => 'ADMIN', pw => 'APW',  fullAdmin => 1, listAdmin => 1 },
+        USER1 => { id => 'USER1', pw => 'U1PW', moderate  => 1, fullAdmin => 1, listAdmin => 1 },
+      },
+      req => {
+        "ADMIN-fullAdmin" => 'on',
+        "ADMIN-listAdmin" => 'on',
+        "USER1-moderate"  => 'on',
+        "USER1-fullAdmin" => 'on',
+        "USER1-listAdmin" => 'on',
+        "deleteUser"      => q{ADMIN},
+      },
+      error => {
+        calls => { user_error => ['User ADMIN cannot be deleted'] },
+      }
+    },
 
   );
   foreach my $case (@cases) {
-    my $calls = {};
-    my $mock  = Test::MockModule->new( 'Webstump::User', no_auto => 1 )
+    my $testcase = "$test $case->{name}";
+    my $calls    = {};
+    my $mock     = Test::MockModule->new( 'Webstump::User', no_auto => 1 )
       ->mock( saveUsersToFile => sub { $calls->{saveUsersToFile} = [@_]; } );
+    my $mockMain = Test::MockModule->new( 'main', no_auto => 1 )
+      ->mock( user_error => sub { $calls->{user_error} = [@_]; exit(0); } );
 
   TODO: {
       local $TODO = $case->{todo};
       my $users = { %{ $case->{userBase} } };             # shallow copy
       my %req   = ( %$requestBase, %{ $case->{req} } );
-      updateUsers( \%req, 'm.t.m', $users );
-      is_deeply( $users, $case->{expect}, "$case->{name} updated users" )
-        or diag( explain($users) );
-      is_deeply( $calls, { saveUsersToFile => [$users] },
-        qq{$case->{name} called saveUsersToFile} );
+      trap { updateUsers( \%req, 'm.t.m', $users ) };
+      if ( my $error = $case->{error} ) {
+        $trap->did_exit(qq{$testcase did exit});
+        is_deeply( $calls, $error->{calls}, qq{$testcase made expected calls} )
+          or diag( explain($calls) );
+      } else {
+        $trap->did_return(qq{$testcase normal return});
+        is_deeply( $users, $case->{expect}, "$testcase updated users" )
+          or diag( explain($users) );
+        is_deeply( $calls, { saveUsersToFile => [$users] }, qq{$testcase called saveUsersToFile} );
+      }
     }
   }
+}
+
+sub test_readUsersFromFile {
+  my $test  = 'readUsersFromFile';
+  my @cases = (
+    {
+      case   => 'users file',
+      ng     => 'm.t.m',
+      expect => {
+        ADMIN => {
+          id        => 'ADMIN',
+          pw        => 'ADMINPW',
+          moderate  => 0,
+          fullAdmin => 1,
+          listAdmin => 1,
+          userAdmin => 1
+        },
+        USER1 => {
+          id        => 'USER1',
+          pw        => 'USER1PW',
+          moderate  => 1,
+          fullAdmin => 1,
+          listAdmin => 1,
+          userAdmin => 0
+        },
+        USER2 => {
+          id        => 'USER2',
+          pw        => 'USER2PW',
+          moderate  => 1,
+          fullAdmin => 0,
+          listAdmin => 1,
+          userAdmin => 0
+        },
+        USER3 => {
+          id        => 'USER3',
+          pw        => 'USER3PW',
+          moderate  => 1,
+          fullAdmin => 0,
+          listAdmin => 0,
+          userAdmin => 0
+        },
+      }
+    },
+    {
+      case   => 'moderators file',
+      ng     => 'm.t.legacy',
+      expect => {
+        ADMIN => {
+          id        => 'ADMIN',
+          pw        => 'ADMINPW',
+          moderate  => 0,
+          fullAdmin => 1,
+          listAdmin => 1,
+          userAdmin => 1
+        },
+        USER1 => {
+          id        => 'USER1',
+          pw        => 'USER1PW',
+          moderate  => 1,
+          fullAdmin => 0,
+          listAdmin => 0,
+          userAdmin => 0
+        }
+      },
+      calls => { saveUsersToFile => 1 }
+    }
+  );
+
+  # Checking the navigation to the file means we need to...
+  require_ok("webstump.lib.pl");
+
+  foreach my $case (@cases) {
+    my $testcase = "$test $case->{case}";
+
+    my ($test_home) = $0 =~ m{^(.*)/user\.t$};
+    ok( -d "$test_home/data/config/", qq{$testcase found test data} ) || return;
+
+    # declare these variables separately to avoid the used once warning
+    local ( $main::webstump_home, %main::request );
+    $main::webstump_home = qq{$test_home/data};
+    %main::request       = ( newsgroup => $case->{ng} );
+    my $calls = {};
+    my $mock  = Test::MockModule->new( 'Webstump::User', no_auto => 1 )
+      ->mock( saveUsersToFile => sub { $calls->{saveUsersToFile}++; } );
+
+    my $users = trap { Webstump::User::readUsersFromFile() };
+    $trap->did_return(qq{$testcase normal return});
+    is_deeply( $users, $case->{expect}, qq{$testcase expecte result} )
+      or diag( explain($users) );
+    is_deeply( $calls, $case->{calls} // {}, qq{$testcase made expected calls} )
+      or diag( explain($calls) );
+  }
+}
+
+sub test_saveUsersToFile {
+  my $test      = 'saveUsersToFile';
+  my $tempdir   = tempdir( CLEANUP => 1 );
+  my $newsgroup = 'm.t.m';
+  local ( $main::webstump_home, %main::request );
+  $main::webstump_home = $tempdir;
+  %main::request       = ( newsgroup => $newsgroup );
+  my $configdir = "$tempdir/config/newsgroups/$newsgroup/";
+
+  my @dirs = make_path("$configdir");
+  if ( !scalar(@dirs) ) { die "failed to create $configdir $!" }
+  my $users = {
+    ADMIN => {
+      id        => 'ADMIN',
+      pw        => 'APW',
+      moderate  => 0,
+      fullAdmin => 1,
+      listAdmin => 1,
+      userAdmin => 0
+    },
+    USER1 => {
+      id        => 'USER1',
+      pw        => 'U1PW',
+      moderate  => 1,
+      fullAdmin => 0,
+      listAdmin => 0,
+      userAdmin => 0
+    },
+  };
+  my $expect = qq{ADMIN APW fullAdmin listAdmin\nUSER1 U1PW moderate\n};
+  trap { Webstump::User::saveUsersToFile($users) };
+  $trap->did_return(qq{$test normal return});
+  open( my $infh, '<', "$configdir/users" ) || die "failed to open < $configdir/users $!";
+  my $data = do { local $/; <$infh> };
+  close($infh);
+  is( $data, $expect, qq{$test saved file has expected data} );
 
 }

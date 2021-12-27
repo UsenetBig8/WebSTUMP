@@ -1,0 +1,4 @@
+ADMIN ADMINPW fullAdmin userAdmin listAdmin
+USER1 USER1PW moderate fullAdmin listAdmin
+USER2 USER2PW moderate listAdmin
+USER3 USER3PW moderate
