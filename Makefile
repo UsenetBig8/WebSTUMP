@@ -26,7 +26,7 @@ WEBSTUMP_HOME = $(CURDIR)
 CC = cc
 
 # do not edit below
-all: verify c_compile
+all: verify dirs c_compile
 
 verify:
 	@if [ ! -x $(WEBSTUMP_HOME)/scripts/webstump.pl ] ;  then	\
@@ -39,6 +39,10 @@ verify:
 		exit 1;							\
 	fi	\
 
+dirs:
+	mkdir -p $(WEBSTUMP_HOME)/bin
+	mkdir -p $(WEBSTUMP_HOME)/queues/demo.newsgroup
+	mkdir -p $(WEBSTUMP_HOME)/queues/test.newsgroup
 
 c_compile:
 	cd src; make WEBSTUMP_HOME=$(WEBSTUMP_HOME)
